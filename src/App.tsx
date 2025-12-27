@@ -22,7 +22,7 @@ function App() {
   useEffect(() => {
     fetchSettings();
     fetchAddonDirectory();
-    fetchIndex();
+    fetchIndex(true); // Always refresh index on startup
     fetchInstalled();
   }, []);
 
