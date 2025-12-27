@@ -44,7 +44,7 @@ export const useIndexStore = create<IndexStore>((set, get) => ({
       const index = await api.fetchIndex(force);
       set({
         addons: index.addons,
-        lastFetched: index.fetchedAt,
+        lastFetched: index.fetched_at ?? index.generated_at,
         loading: false,
       });
     } catch (e) {

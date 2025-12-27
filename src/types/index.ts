@@ -1,7 +1,10 @@
 /** The addon index containing all available addons */
 export interface AddonIndex {
+  version: string;
+  generated_at: string;
+  addon_count: number;
   addons: IndexAddon[];
-  fetchedAt: string;
+  fetched_at?: string;
 }
 
 /** An addon entry from the index */
@@ -15,7 +18,7 @@ export interface IndexAddon {
   tags: string[];
   source: AddonSource;
   compatibility: AddonCompatibility;
-  latestRelease?: AddonRelease;
+  latest_release?: AddonRelease;
 }
 
 /** Source repository information */
@@ -27,24 +30,24 @@ export interface AddonSource {
 
 /** Compatibility information for an addon */
 export interface AddonCompatibility {
-  apiVersion?: string;
-  gameVersions: string[];
-  requiredDependencies: string[];
-  optionalDependencies: string[];
+  api_version?: string;
+  game_versions: string[];
+  required_dependencies: string[];
+  optional_dependencies: string[];
 }
 
 /** Release information for an addon */
 export interface AddonRelease {
   version: string;
-  downloadUrl: string;
-  publishedAt: string;
-  fileSize?: number;
+  download_url: string;
+  published_at?: string;
+  file_size?: number;
   checksum?: string;
 }
 
 /** Index statistics */
 export interface IndexStats {
-  totalAddons: number;
+  total_addons: number;
   categories: [string, number][];
-  fetchedAt: string;
+  fetched_at: string;
 }

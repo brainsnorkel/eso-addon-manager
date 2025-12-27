@@ -5,8 +5,7 @@ use chrono::Utc;
 use tauri::State;
 
 /// Default index URL (can be overridden in settings)
-const DEFAULT_INDEX_URL: &str =
-    "https://raw.githubusercontent.com/eso-addon-index/index/main/index.json";
+const DEFAULT_INDEX_URL: &str = "https://xop.co/eso-addon-index/";
 
 /// Fetch the addon index (from cache or remote)
 #[tauri::command]
@@ -75,7 +74,7 @@ pub async fn fetch_index(force: Option<bool>, state: State<'_, AppState>) -> Res
         serde_json::from_str(&data).map_err(|e| format!("Failed to parse index: {}", e))?;
 
     // Update fetched_at
-    index.fetched_at = Utc::now().to_rfc3339();
+    index.fetched_at = Some(Utc::now().to_rfc3339());
 
     // Cache the index - acquire lock again
     {

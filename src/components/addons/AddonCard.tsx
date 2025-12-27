@@ -16,16 +16,16 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
 
   const hasUpdate =
     isInstalled &&
-    addon.latestRelease &&
-    installedAddon.installedVersion !== addon.latestRelease.version;
+    addon.latest_release &&
+    installedAddon.installedVersion !== addon.latest_release.version;
 
   const handleInstall = async () => {
-    if (!addon.latestRelease) return;
+    if (!addon.latest_release) return;
     await installAddon(
       addon.slug,
       addon.name,
-      addon.latestRelease.version,
-      addon.latestRelease.downloadUrl
+      addon.latest_release.version,
+      addon.latest_release.download_url
     );
   };
 
@@ -71,7 +71,7 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
 
       <div className="mt-4 flex items-center justify-between">
         <span className="text-sm text-gray-500">
-          {addon.latestRelease?.version ?? 'No release'}
+          {addon.latest_release?.version ?? 'No release'}
           {isInstalled && (
             <span className="ml-2 text-green-400">
               (installed: {installedAddon.installedVersion})
@@ -107,7 +107,7 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
             <Button
               size="sm"
               onClick={handleInstall}
-              disabled={!addon.latestRelease}
+              disabled={!addon.latest_release}
             >
               Install
             </Button>

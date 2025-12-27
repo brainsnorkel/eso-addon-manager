@@ -193,14 +193,23 @@ Current focus order:
 
 ---
 
+## Addon Index
+
+The addon index is hosted at:
+- **GitHub**: https://github.com/brainsnorkel/eso-addon-index
+- **JSON URL**: https://xop.co/eso-addon-index/
+
+The app fetches this index automatically and caches it locally.
+
+---
+
 ## Next Steps
 
-1. Create an addon index repository or use existing (ESOUI)
-2. Implement GitHub repo validation and download
-3. Add file dialog for custom ESO path selection
-4. Implement auto-update mechanism
-5. Add dependency resolution for addons
-6. Create application icons
+1. Implement GitHub repo validation and download
+2. Add file dialog for custom ESO path selection
+3. Implement auto-update mechanism
+4. Add dependency resolution for addons
+5. Create application icons
 
 ---
 

@@ -2,15 +2,22 @@ use serde::{Deserialize, Serialize};
 
 /// The addon index containing all available addons
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct AddonIndex {
+    /// Index format version
+    pub version: String,
+    /// When the index was generated
+    pub generated_at: String,
+    /// Total number of addons
+    pub addon_count: usize,
+    /// List of addons
     pub addons: Vec<IndexAddon>,
-    pub fetched_at: String,
+    /// When we fetched this index (added client-side)
+    #[serde(default)]
+    pub fetched_at: Option<String>,
 }
 
 /// An addon entry from the index
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct IndexAddon {
     pub slug: String,
     pub name: String,
@@ -26,7 +33,6 @@ pub struct IndexAddon {
 
 /// Source repository information
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct AddonSource {
     #[serde(rename = "type")]
     pub source_type: String,
@@ -36,7 +42,6 @@ pub struct AddonSource {
 
 /// Compatibility information for an addon
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct AddonCompatibility {
     pub api_version: Option<String>,
     pub game_versions: Vec<String>,
@@ -46,11 +51,10 @@ pub struct AddonCompatibility {
 
 /// Release information for an addon
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct AddonRelease {
     pub version: String,
     pub download_url: String,
-    pub published_at: String,
+    pub published_at: Option<String>,
     pub file_size: Option<u64>,
     pub checksum: Option<String>,
 }
