@@ -190,6 +190,17 @@ Current focus order:
 - Commit after each meaningful change
 - Conventional commit messages
 - All commits include Claude Code attribution
+- **Always run lint and tests before pushing**:
+  ```bash
+  # Rust checks (required before push)
+  cargo fmt --manifest-path src-tauri/Cargo.toml
+  cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+  cargo test --manifest-path src-tauri/Cargo.toml
+
+  # Frontend checks
+  npm run build
+  npm run lint
+  ```
 
 ---
 
