@@ -219,7 +219,7 @@ The app fetches this index automatically and caches it locally.
 
 ## Next Steps
 
-1. Implement GitHub repo validation and download
+1. ~~Implement GitHub repo validation and download~~ ✅ DONE
 2. Add file dialog for custom ESO path selection
 3. Implement auto-update mechanism
 4. Add dependency resolution for addons
