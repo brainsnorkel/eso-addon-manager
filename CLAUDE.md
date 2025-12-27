@@ -216,6 +216,84 @@ The app fetches this index automatically and caches it locally.
 
 ---
 
+## Dependency Resolution Implementation Plan
+
+### Overview
+When installing an addon, automatically resolve and install required dependencies from the index.
+
+### Index Data Structure
+Dependencies are stored as slug references in each addon's data:
+```json
+{
+  "slug": "some-addon",
+  "required_dependencies": ["libaddonmenu", "libchatmessage"],
+  "optional_dependencies": ["libdebuglogger"]
+}
+```
+
+### Resolution Algorithm
+
+1. **Build Dependency Tree**
+   - Parse `required_dependencies` array from the addon being installed
+   - For each dependency slug, look up in the cached index
+   - Recursively resolve nested dependencies
+   - Detect circular dependencies
+
+2. **Classify Dependencies**
+   - **Resolved**: Found in index with valid download URL
+   - **Already Installed**: Check against installed addons database
+   - **Unresolved**: Slug not found in index (external dependency)
+
+3. **User Confirmation Flow**
+   - Display list of dependencies to be installed
+   - Show warnings for unresolved dependencies
+   - Suggest ESOUI/Minion for missing external dependencies
+   - Allow user to proceed or cancel
+
+4. **Installation Order**
+   - Install dependencies before the main addon
+   - Use topological sort for correct order
+   - Handle partial failures gracefully
+
+### Backend Changes (Rust)
+
+**New service**: `src-tauri/src/services/resolver.rs`
+```rust
+pub struct DependencyResult {
+    pub resolved: Vec<ResolvedDependency>,
+    pub already_installed: Vec<String>,
+    pub unresolved: Vec<String>,
+}
+
+pub fn resolve_dependencies(slug: &str, index: &AddonIndex, installed: &[InstalledAddon]) -> DependencyResult
+```
+
+**New command**: `resolve_addon_dependencies`
+- Input: addon slug
+- Output: `DependencyResult` for UI display
+
+**Modified command**: `install_addon`
+- Add optional `install_dependencies: bool` parameter
+- If true, resolve and install all dependencies first
+
+### Frontend Changes (React)
+
+**New component**: `DependencyDialog`
+- Shows resolved dependencies with checkboxes
+- Warns about unresolved dependencies
+- Confirm/Cancel buttons
+
+**Store updates**: `addonStore.ts`
+- Add `resolveDependencies(slug)` action
+- Track dependency installation progress
+
+### Error Handling
+- Missing dependency in index → Show slug, suggest ESOUI
+- Dependency download fails → Continue with warning, don't block main addon
+- Circular dependency → Detect and break cycle
+
+---
+
 ## References
 
 - [Implementation Guide](eso-addon-manager-implementation.md) - Full technical specification
