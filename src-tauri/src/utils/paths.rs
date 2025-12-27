@@ -1,4 +1,6 @@
-use directories::{BaseDirs, UserDirs};
+use directories::BaseDirs;
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+use directories::UserDirs;
 use std::path::PathBuf;
 
 /// Get the ESO addon directory for the current platform
