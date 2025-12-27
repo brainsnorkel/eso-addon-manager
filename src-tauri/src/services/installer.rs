@@ -1,4 +1,5 @@
 use crate::error::{AppError, Result};
+use crate::utils::manifest::find_manifests;
 use crate::utils::zip::{extract_archive, find_addon_root};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -16,14 +17,12 @@ pub fn install_from_archive(archive_path: &Path, addon_dir: &Path) -> Result<Pat
     let addon_root = find_addon_root(temp_dir.path())
         .ok_or_else(|| AppError::InvalidManifest("No addon manifest found in archive".into()))?;
 
-    // Get the addon folder name
-    let addon_name = addon_root
-        .file_name()
-        .and_then(|n| n.to_str())
-        .ok_or_else(|| AppError::InvalidManifest("Invalid addon folder name".into()))?;
+    // Get the addon name from the manifest filename, not the folder name
+    // This handles cases like "WarMask-1.3.0/" containing "WarMask.txt"
+    let addon_name = get_addon_name_from_manifest(&addon_root)?;
 
     // Target path in the ESO addons directory
-    let target_path = addon_dir.join(addon_name);
+    let target_path = addon_dir.join(&addon_name);
 
     // Remove existing addon if present
     if target_path.exists() {
@@ -84,6 +83,27 @@ pub fn get_manifest_path(addon_path: &Path) -> Option<PathBuf> {
             None
         })
     }
+}
+
+/// Get the correct addon name from the manifest file in a directory
+/// The manifest filename determines the required addon folder name
+/// e.g., "WarMask.txt" means the addon must be in a "WarMask" folder
+fn get_addon_name_from_manifest(addon_root: &Path) -> Result<String> {
+    let manifests = find_manifests(addon_root);
+
+    if manifests.is_empty() {
+        return Err(AppError::InvalidManifest(
+            "No manifest file found in addon".into(),
+        ));
+    }
+
+    // Use the first manifest's filename as the addon name
+    let manifest_path = &manifests[0];
+    manifest_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .map(String::from)
+        .ok_or_else(|| AppError::InvalidManifest("Invalid manifest filename".into()))
 }
 
 #[cfg(test)]
