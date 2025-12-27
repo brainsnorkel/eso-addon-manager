@@ -63,26 +63,38 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
 }
 
 /// Get the manifest file path for an addon
+/// ESO addons can use either .txt or .addon extension for manifests
 pub fn get_manifest_path(addon_path: &Path) -> Option<PathBuf> {
     let addon_name = addon_path.file_name()?.to_str()?;
-    let manifest_path = addon_path.join(format!("{}.txt", addon_name));
 
-    if manifest_path.exists() {
-        Some(manifest_path)
-    } else {
-        // Search for any .txt file that's a manifest
-        fs::read_dir(addon_path).ok()?.find_map(|entry| {
-            let path = entry.ok()?.path();
-            if path.extension()? == "txt" {
-                if let Ok(content) = fs::read_to_string(&path) {
-                    if content.contains("## Title:") {
-                        return Some(path);
-                    }
+    // First try exact match with .txt extension
+    let txt_manifest = addon_path.join(format!("{}.txt", addon_name));
+    if txt_manifest.exists() {
+        return Some(txt_manifest);
+    }
+
+    // Try .addon extension
+    let addon_manifest = addon_path.join(format!("{}.addon", addon_name));
+    if addon_manifest.exists() {
+        return Some(addon_manifest);
+    }
+
+    // Search for any manifest file (.txt or .addon)
+    fs::read_dir(addon_path).ok()?.find_map(|entry| {
+        let path = entry.ok()?.path();
+        let is_manifest_ext = path
+            .extension()
+            .map(|e| e == "txt" || e == "addon")
+            .unwrap_or(false);
+        if is_manifest_ext {
+            if let Ok(content) = fs::read_to_string(&path) {
+                if content.contains("## Title:") {
+                    return Some(path);
                 }
             }
-            None
-        })
-    }
+        }
+        None
+    })
 }
 
 /// Get the correct addon name from the manifest file in a directory

@@ -78,11 +78,16 @@ pub fn find_addon_root(extracted_dir: &Path) -> Option<std::path::PathBuf> {
 }
 
 /// Check if a directory contains an addon manifest
+/// ESO addons can use either .txt or .addon extension for manifests
 fn has_manifest(dir: &Path) -> bool {
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().map(|e| e == "txt").unwrap_or(false) {
+            let is_manifest_ext = path
+                .extension()
+                .map(|e| e == "txt" || e == "addon")
+                .unwrap_or(false);
+            if is_manifest_ext {
                 if let Ok(content) = fs::read_to_string(&path) {
                     if content.contains("## Title:") {
                         return true;

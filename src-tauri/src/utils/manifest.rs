@@ -55,13 +55,18 @@ fn parse_dependency_list(value: Option<&String>) -> Vec<String> {
 }
 
 /// Find all manifest files in an addon directory
+/// ESO addons can use either .txt or .addon extension for manifests
 pub fn find_manifests(addon_dir: &Path) -> Vec<std::path::PathBuf> {
     let mut manifests = Vec::new();
 
     if let Ok(entries) = fs::read_dir(addon_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().map(|e| e == "txt").unwrap_or(false) {
+            let is_manifest_ext = path
+                .extension()
+                .map(|e| e == "txt" || e == "addon")
+                .unwrap_or(false);
+            if is_manifest_ext {
                 // Check if it's actually a manifest (has ## Title:)
                 if let Ok(content) = fs::read_to_string(&path) {
                     if content.contains("## Title:") {
