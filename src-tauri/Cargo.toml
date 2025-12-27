@@ -1,16 +1,12 @@
 [package]
 name = "eso-addon-manager"
 version = "0.1.0"
-description = "A Tauri App"
+description = "ESO Addon Manager - Discover, install, and manage Elder Scrolls Online addons"
 authors = ["you"]
+license = "MIT"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
-# The `_lib` suffix may seem redundant but it is necessary
-# to make the lib name unique and wouldn't conflict with the bin name.
-# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "eso_addon_manager_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
@@ -22,4 +18,34 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Database
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# Error handling
+thiserror = "2"
+
+# Platform directories
+directories = "6"
+
+# Archive extraction
+zip = "2"
+
+# Date/time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Async traits
+async-trait = "0.1"
+
+# Async stream utilities
+futures-util = "0.3"
+
+# Temporary files
+tempfile = "3"
 

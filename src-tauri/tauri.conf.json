@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "eso-addon-manager",
+  "productName": "ESO Addon Manager",
+  "identifier": "com.eso-addon-manager.app",
   "version": "0.1.0",
-  "identifier": "com.christophergentle.eso-addon-manager",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,13 +12,18 @@
   "app": {
     "windows": [
       {
-        "title": "eso-addon-manager",
-        "width": 800,
-        "height": 600
+        "title": "ESO Addon Manager",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; img-src 'self' https://avatars.githubusercontent.com data:; connect-src 'self' https://api.github.com https://*.github.io https://raw.githubusercontent.com"
     }
   },
   "bundle": {
@@ -30,6 +35,14 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    }
   }
 }

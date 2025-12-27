@@ -1,0 +1,84 @@
+use crate::error::Result;
+use std::fs::{self, File};
+use std::io;
+use std::path::Path;
+
+/// Extract a ZIP archive to the target directory
+pub fn extract_archive(archive_path: &Path, target_dir: &Path) -> Result<Vec<String>> {
+    let file = File::open(archive_path)?;
+    let mut archive = zip::ZipArchive::new(file)?;
+    let mut extracted_paths = Vec::new();
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i)?;
+        let outpath = match file.enclosed_name() {
+            Some(path) => target_dir.join(path),
+            None => continue,
+        };
+
+        if file.is_dir() {
+            fs::create_dir_all(&outpath)?;
+        } else {
+            if let Some(parent) = outpath.parent() {
+                if !parent.exists() {
+                    fs::create_dir_all(parent)?;
+                }
+            }
+            let mut outfile = File::create(&outpath)?;
+            io::copy(&mut file, &mut outfile)?;
+        }
+
+        // Set permissions on Unix
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if let Some(mode) = file.unix_mode() {
+                fs::set_permissions(&outpath, fs::Permissions::from_mode(mode))?;
+            }
+        }
+
+        if let Some(path_str) = outpath.to_str() {
+            extracted_paths.push(path_str.to_string());
+        }
+    }
+
+    Ok(extracted_paths)
+}
+
+/// Find the root addon directory inside an extracted archive
+/// Some archives have the addon in a subdirectory
+pub fn find_addon_root(extracted_dir: &Path) -> Option<std::path::PathBuf> {
+    // First, check if there's a manifest directly in the extracted dir
+    if has_manifest(extracted_dir) {
+        return Some(extracted_dir.to_path_buf());
+    }
+
+    // Check first-level subdirectories
+    if let Ok(entries) = fs::read_dir(extracted_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() && has_manifest(&path) {
+                return Some(path);
+            }
+        }
+    }
+
+    None
+}
+
+/// Check if a directory contains an addon manifest
+fn has_manifest(dir: &Path) -> bool {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().map(|e| e == "txt").unwrap_or(false) {
+                if let Ok(content) = fs::read_to_string(&path) {
+                    if content.contains("## Title:") {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
+}

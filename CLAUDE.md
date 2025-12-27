@@ -4,9 +4,24 @@
 
 A cross-platform desktop application for discovering, installing, and managing Elder Scrolls Online (ESO) addons. Built with Tauri 2.x (Rust backend + React frontend) for native performance with a modern UI.
 
-**Status**: IN DEVELOPMENT
+**Status**: SCAFFOLDED - Ready for Development
 **License**: MIT
 **Target**: Public release for ESO community
+
+---
+
+## Scaffolding Complete
+
+The project structure has been fully scaffolded with:
+
+- [x] Tauri 2.x project with React + TypeScript
+- [x] Tailwind CSS 4 configuration
+- [x] Rust backend modules (commands, models, services, utils)
+- [x] SQLite database schema and migrations
+- [x] React frontend with Zustand state management
+- [x] TypeScript type definitions
+- [x] Basic UI components (Sidebar, Header, AddonCard, etc.)
+- [x] GitHub Actions CI/CD workflows
 
 ---
 
@@ -17,7 +32,7 @@ A cross-platform desktop application for discovering, installing, and managing E
 | Framework | Tauri 2.x | Desktop app framework (~10 MB binary) |
 | Backend | Rust | Memory safety, async I/O, cross-platform |
 | Frontend | React 18 + TypeScript | Component ecosystem, type safety |
-| Styling | Tailwind CSS | Utility-first CSS |
+| Styling | Tailwind CSS 4 | Utility-first CSS |
 | State | Zustand | Lightweight TypeScript-native state |
 | HTTP | reqwest (Rust) | Async HTTP with connection pooling |
 | Storage | SQLite (rusqlite) | Local database |
@@ -30,21 +45,51 @@ A cross-platform desktop application for discovering, installing, and managing E
 ```
 eso-addon-manager/
 ├── .github/workflows/          # CI/CD workflows
+│   ├── ci.yml                  # Build + test on PR
+│   └── release.yml             # Build release binaries
 ├── src-tauri/                  # Rust backend
 │   ├── src/
 │   │   ├── commands/           # Tauri command handlers
+│   │   │   ├── addons.rs       # Install/uninstall/scan
+│   │   │   ├── github.rs       # Custom repo tracking
+│   │   │   ├── index.rs        # Index fetch/cache
+│   │   │   └── settings.rs     # User preferences
 │   │   ├── models/             # Data structures
+│   │   │   ├── addon.rs        # InstalledAddon, UpdateInfo
+│   │   │   ├── index.rs        # AddonIndex, IndexAddon
+│   │   │   └── settings.rs     # AppSettings
 │   │   ├── services/           # Business logic
-│   │   └── utils/              # Helpers (paths, manifest, zip)
-│   └── migrations/             # SQLite migrations
+│   │   │   ├── database.rs     # SQLite operations
+│   │   │   ├── downloader.rs   # HTTP downloads
+│   │   │   ├── installer.rs    # Archive extraction
+│   │   │   └── scanner.rs      # Local addon discovery
+│   │   ├── utils/              # Helpers
+│   │   │   ├── manifest.rs     # TOC file parsing
+│   │   │   ├── paths.rs        # Platform paths
+│   │   │   └── zip.rs          # Archive handling
+│   │   ├── error.rs            # Custom error types
+│   │   ├── state.rs            # AppState
+│   │   └── lib.rs              # Main entry
+│   └── migrations/
+│       └── 001_initial.sql     # Database schema
 ├── src/                        # React frontend
-│   ├── components/             # UI components
-│   ├── hooks/                  # Custom React hooks
+│   ├── components/
+│   │   ├── layout/             # Sidebar, Header
+│   │   ├── addons/             # AddonCard
+│   │   ├── search/             # SearchBar
+│   │   └── common/             # Button, etc.
 │   ├── stores/                 # Zustand stores
-│   ├── services/               # Tauri command wrappers
-│   └── types/                  # TypeScript types
+│   │   ├── addonStore.ts
+│   │   ├── indexStore.ts
+│   │   ├── githubStore.ts
+│   │   └── settingsStore.ts
+│   ├── services/
+│   │   └── tauri.ts            # Tauri command wrappers
+│   ├── types/                  # TypeScript definitions
+│   ├── App.tsx                 # Main app with views
+│   └── index.css               # Tailwind imports
 ├── public/                     # Static assets
-└── eso-addon-manager-implementation.md  # Full implementation guide
+└── eso-addon-manager-implementation.md
 ```
 
 ---
@@ -72,13 +117,10 @@ npm run tauri dev
 # Build for production
 npm run tauri build
 
-# Run tests
-npm test                    # Frontend tests
-cargo test                  # Rust tests (from src-tauri/)
-
-# Linting
-npm run lint               # ESLint
-cargo clippy              # Rust linting (from src-tauri/)
+# Rust checks
+cargo check --manifest-path src-tauri/Cargo.toml
+cargo clippy --manifest-path src-tauri/Cargo.toml
+cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
 ---
@@ -103,35 +145,29 @@ Current focus order:
 
 ---
 
-## Key Implementation Details
+## Tauri Commands (Backend API)
 
-### TOC Manifest Parsing
+### Addon Commands
+- `get_installed_addons` - List all installed addons
+- `install_addon` - Download and install an addon
+- `uninstall_addon` - Remove an addon
+- `scan_local_addons` - Discover untracked addons
+- `check_updates` - Find available updates
+- `get_addon_directory` / `set_addon_directory` - ESO path management
 
-ESO addon manifests are `.txt` files with metadata:
-```
-## Title: AddonName
-## APIVersion: 101041
-## Author: AuthorName
-## Version: 1.0.0
-## DependsOn: LibAddonMenu-2.0
-```
+### GitHub Commands
+- `add_custom_repo` - Track a GitHub repo
+- `get_custom_repos` - List tracked repos
+- `remove_custom_repo` - Stop tracking a repo
+- `get_github_repo_info` - Fetch repo metadata
 
-### Database Schema
+### Index Commands
+- `fetch_index` - Get/refresh addon index
+- `get_cached_index` - Get cached index
+- `get_index_stats` - Index statistics
 
-Key tables:
-- `installed_addons` - Tracks installed addons with version, source
-- `custom_repos` - Custom GitHub repos not in main index
-- `index_cache` - Cached addon index with ETag for conditional requests
-- `settings` - User preferences
-- `downloads` - Download queue and history
-
-### Tauri Commands
-
-Commands exposed to frontend:
-- `get_installed_addons` / `install_addon` / `uninstall_addon`
-- `add_custom_repo` / `get_custom_repos` / `remove_custom_repo`
-- `fetch_index` / `check_updates`
-- `scan_local_addons`
+### Settings Commands
+- `get_settings` / `update_settings` / `reset_settings`
 
 ---
 
@@ -140,43 +176,31 @@ Commands exposed to frontend:
 ### Rust Backend
 - Use `thiserror` for custom error types
 - Async functions with `tokio`
-- Commands return `Result<T, String>` for Tauri compatibility
-- Use `#[cfg(target_os = "...")]` for platform-specific code
+- Commands return `Result<T, String>` for Tauri
+- Use `#[cfg(target_os = "...")]` for platform code
+- Drop mutex guards before await points
 
 ### React Frontend
 - Functional components with TypeScript
-- Zustand for state management (no Redux)
-- Tailwind CSS for styling (no CSS modules)
-- Use `@tauri-apps/api` for backend communication
+- Zustand for state management
+- Tailwind CSS for styling
+- Use `@tauri-apps/api` for backend calls
 
 ### Git Workflow
-- Commit after each meaningful code change
-- Use conventional commit messages
+- Commit after each meaningful change
+- Conventional commit messages
 - All commits include Claude Code attribution
 
 ---
 
-## Testing
+## Next Steps
 
-### Rust Tests
-```bash
-cd src-tauri
-cargo test
-```
-
-### Frontend Tests
-```bash
-npm test          # Run vitest
-npm run test:ui   # With UI
-```
-
----
-
-## Known Challenges
-
-1. **Linux Path Detection**: Steam/Lutris Wine prefix paths vary; may need user prompt
-2. **Addon Dependencies**: Some addons require libraries (LibAddonMenu, etc.)
-3. **Perfected vs Non-Perfected**: Gear sets have "Perfected" variants
+1. Create an addon index repository or use existing (ESOUI)
+2. Implement GitHub repo validation and download
+3. Add file dialog for custom ESO path selection
+4. Implement auto-update mechanism
+5. Add dependency resolution for addons
+6. Create application icons
 
 ---
 

@@ -1,50 +1,288 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { useState, useEffect } from 'react';
+import { Sidebar } from './components/layout/Sidebar';
+import { Header } from './components/layout/Header';
+import { Button } from './components/common/Button';
+import { SearchBar } from './components/search/SearchBar';
+import { AddonCard } from './components/addons/AddonCard';
+import { useIndexStore } from './stores/indexStore';
+import { useAddonStore } from './stores/addonStore';
+import { useSettingsStore } from './stores/settingsStore';
+
+type View = 'browse' | 'installed' | 'github' | 'updates' | 'settings';
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [activeView, setActiveView] = useState<View>('browse');
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+  // Initialize stores
+  const { addons, loading: indexLoading, fetchIndex, filteredAddons } = useIndexStore();
+  const { installed, fetchInstalled, loading: addonLoading } = useAddonStore();
+  const { fetchSettings, fetchAddonDirectory, addonDirectory } = useSettingsStore();
+
+  useEffect(() => {
+    fetchSettings();
+    fetchAddonDirectory();
+    fetchIndex();
+    fetchInstalled();
+  }, []);
+
+  const renderContent = () => {
+    switch (activeView) {
+      case 'browse':
+        return <BrowseView />;
+      case 'installed':
+        return <InstalledView />;
+      case 'github':
+        return <GitHubView />;
+      case 'updates':
+        return <UpdatesView />;
+      case 'settings':
+        return <SettingsView />;
+      default:
+        return <BrowseView />;
+    }
+  };
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+    <div className="flex h-screen bg-gray-900 text-gray-100">
+      <Sidebar activeView={activeView} onViewChange={(v) => setActiveView(v as View)} />
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {renderContent()}
+      </main>
+    </div>
+  );
+}
 
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+function BrowseView() {
+  const { loading, fetchIndex, filteredAddons, addons } = useIndexStore();
+  const filtered = filteredAddons();
+
+  return (
+    <>
+      <Header
+        title="Browse Addons"
+        subtitle={`${filtered.length} of ${addons.length} addons`}
+        actions={
+          <Button onClick={() => fetchIndex(true)} loading={loading} variant="secondary">
+            Refresh Index
+          </Button>
+        }
+      />
+      <div className="p-6 flex-1 overflow-auto">
+        <div className="max-w-4xl mx-auto">
+          <SearchBar />
+          <div className="mt-6 grid gap-4">
+            {loading && filtered.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                Loading addons...
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                No addons found. Try adjusting your search.
+              </div>
+            ) : (
+              filtered.map((addon) => (
+                <AddonCard key={addon.slug} addon={addon} />
+              ))
+            )}
+          </div>
+        </div>
       </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+    </>
+  );
+}
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+function InstalledView() {
+  const { installed, loading, fetchInstalled, scanLocalAddons, scannedAddons } = useAddonStore();
+
+  return (
+    <>
+      <Header
+        title="Installed Addons"
+        subtitle={`${installed.length} addons installed`}
+        actions={
+          <div className="flex gap-2">
+            <Button onClick={scanLocalAddons} variant="secondary">
+              Scan Local
+            </Button>
+            <Button onClick={fetchInstalled} loading={loading} variant="secondary">
+              Refresh
+            </Button>
+          </div>
+        }
+      />
+      <div className="p-6 flex-1 overflow-auto">
+        <div className="max-w-4xl mx-auto">
+          {installed.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <p>No addons installed yet.</p>
+              <p className="mt-2 text-sm">Browse addons to get started!</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {installed.map((addon) => (
+                <div
+                  key={addon.slug}
+                  className="bg-gray-800 rounded-lg p-4 border border-gray-700"
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="font-semibold text-gray-100">{addon.name}</h3>
+                      <p className="text-sm text-gray-400">
+                        v{addon.installedVersion} - {addon.sourceType}
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      Installed {new Date(addon.installedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function GitHubView() {
+  return (
+    <>
+      <Header
+        title="GitHub Repositories"
+        subtitle="Track addons from custom GitHub repositories"
+        actions={<Button>Add Repository</Button>}
+      />
+      <div className="p-6 flex-1 overflow-auto">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center py-12 text-gray-400">
+            <p>No custom repositories added yet.</p>
+            <p className="mt-2 text-sm">
+              Add a GitHub repository to track addons that aren't in the main index.
+            </p>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function UpdatesView() {
+  const { updates, checkUpdates } = useAddonStore();
+
+  useEffect(() => {
+    checkUpdates();
+  }, []);
+
+  return (
+    <>
+      <Header
+        title="Available Updates"
+        subtitle={`${updates.length} updates available`}
+        actions={<Button onClick={checkUpdates}>Check for Updates</Button>}
+      />
+      <div className="p-6 flex-1 overflow-auto">
+        <div className="max-w-4xl mx-auto">
+          {updates.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <p>All addons are up to date!</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {updates.map((update) => (
+                <div
+                  key={update.slug}
+                  className="bg-gray-800 rounded-lg p-4 border border-gray-700"
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="font-semibold text-gray-100">{update.name}</h3>
+                      <p className="text-sm text-gray-400">
+                        {update.currentVersion} → {update.newVersion}
+                      </p>
+                    </div>
+                    <Button size="sm">Update</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function SettingsView() {
+  const { settings, addonDirectory, updateSettings } = useSettingsStore();
+
+  return (
+    <>
+      <Header title="Settings" subtitle="Configure the addon manager" />
+      <div className="p-6 flex-1 overflow-auto">
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Addon Directory */}
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <h3 className="font-semibold text-gray-100 mb-2">ESO Addon Directory</h3>
+            <p className="text-sm text-gray-400 mb-3">
+              {addonDirectory ?? 'Not detected - please set manually'}
+            </p>
+            <Button variant="secondary" size="sm">
+              Browse...
+            </Button>
+          </div>
+
+          {/* Update Settings */}
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <h3 className="font-semibold text-gray-100 mb-4">Updates</h3>
+            <div className="space-y-3">
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={settings?.checkUpdatesOnStartup ?? true}
+                  onChange={(e) =>
+                    updateSettings({ checkUpdatesOnStartup: e.target.checked })
+                  }
+                  className="rounded bg-gray-700 border-gray-600 text-amber-500 focus:ring-amber-500"
+                />
+                <span className="text-sm text-gray-300">
+                  Check for updates on startup
+                </span>
+              </label>
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={settings?.autoUpdate ?? false}
+                  onChange={(e) =>
+                    updateSettings({ autoUpdate: e.target.checked })
+                  }
+                  className="rounded bg-gray-700 border-gray-600 text-amber-500 focus:ring-amber-500"
+                />
+                <span className="text-sm text-gray-300">
+                  Automatically install updates
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* Theme */}
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <h3 className="font-semibold text-gray-100 mb-4">Appearance</h3>
+            <select
+              value={settings?.theme ?? 'system'}
+              onChange={(e) =>
+                updateSettings({ theme: e.target.value as 'system' | 'light' | 'dark' })
+              }
+              className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:ring-amber-500 focus:border-amber-500"
+            >
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
