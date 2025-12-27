@@ -46,7 +46,7 @@ pub fn extract_archive(archive_path: &Path, target_dir: &Path) -> Result<Vec<Str
 }
 
 /// Find the root addon directory inside an extracted archive
-/// Some archives have the addon in a subdirectory
+/// Some archives have the addon in a subdirectory (up to 2 levels deep)
 pub fn find_addon_root(extracted_dir: &Path) -> Option<std::path::PathBuf> {
     // First, check if there's a manifest directly in the extracted dir
     if has_manifest(extracted_dir) {
@@ -57,8 +57,19 @@ pub fn find_addon_root(extracted_dir: &Path) -> Option<std::path::PathBuf> {
     if let Ok(entries) = fs::read_dir(extracted_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_dir() && has_manifest(&path) {
-                return Some(path);
+            if path.is_dir() {
+                if has_manifest(&path) {
+                    return Some(path);
+                }
+                // Check second-level subdirectories (for repos like LibAddonMenu)
+                if let Ok(sub_entries) = fs::read_dir(&path) {
+                    for sub_entry in sub_entries.flatten() {
+                        let sub_path = sub_entry.path();
+                        if sub_path.is_dir() && has_manifest(&sub_path) {
+                            return Some(sub_path);
+                        }
+                    }
+                }
             }
         }
     }
