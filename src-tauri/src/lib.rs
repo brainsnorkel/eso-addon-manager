@@ -31,6 +31,8 @@ pub fn run() {
             commands::get_custom_repos,
             commands::remove_custom_repo,
             commands::get_github_repo_info,
+            commands::install_from_github,
+            commands::get_github_release,
             // Index commands
             commands::fetch_index,
             commands::get_cached_index,

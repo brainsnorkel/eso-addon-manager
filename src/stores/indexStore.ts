@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as api from '../services/tauri';
-import type { AddonIndex, IndexAddon, IndexStats } from '../types/index';
+import type { IndexAddon, IndexStats } from '../types/index';
 
 interface IndexStore {
   addons: IndexAddon[];

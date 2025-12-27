@@ -1,11 +1,14 @@
 import { create } from 'zustand';
 import * as api from '../services/tauri';
 import type { CustomRepo, GitHubRepoInfo } from '../types/github';
+import type { InstalledAddon } from '../types/addon';
 
 interface GitHubStore {
   repos: CustomRepo[];
   repoInfo: Map<string, GitHubRepoInfo>;
+  releaseInfo: Map<string, api.GitHubReleaseInfo>;
   loading: boolean;
+  installing: string | null; // repo being installed
   error: string | null;
 
   // Actions
@@ -13,13 +16,17 @@ interface GitHubStore {
   addRepo: (repo: string, branch?: string, releaseType?: string) => Promise<void>;
   removeRepo: (repo: string) => Promise<void>;
   fetchRepoInfo: (repo: string) => Promise<GitHubRepoInfo>;
+  fetchRelease: (repo: string) => Promise<api.GitHubReleaseInfo | null>;
+  installFromRepo: (repo: string, releaseType?: string, branch?: string) => Promise<InstalledAddon>;
   clearError: () => void;
 }
 
-export const useGitHubStore = create<GitHubStore>((set, get) => ({
+export const useGitHubStore = create<GitHubStore>((set) => ({
   repos: [],
   repoInfo: new Map(),
+  releaseInfo: new Map(),
   loading: false,
+  installing: null,
   error: null,
 
   fetchRepos: async () => {
@@ -71,6 +78,35 @@ export const useGitHubStore = create<GitHubStore>((set, get) => ({
       return info;
     } catch (e) {
       set({ error: String(e) });
+      throw e;
+    }
+  },
+
+  fetchRelease: async (repo) => {
+    try {
+      const release = await api.getGitHubRelease(repo);
+      if (release) {
+        set((state) => {
+          const releaseInfo = new Map(state.releaseInfo);
+          releaseInfo.set(repo, release);
+          return { releaseInfo };
+        });
+      }
+      return release;
+    } catch (e) {
+      set({ error: String(e) });
+      throw e;
+    }
+  },
+
+  installFromRepo: async (repo, releaseType, branch) => {
+    set({ installing: repo, error: null });
+    try {
+      const addon = await api.installFromGitHub(repo, releaseType, branch);
+      set({ installing: null });
+      return addon;
+    } catch (e) {
+      set({ installing: null, error: String(e) });
       throw e;
     }
   },

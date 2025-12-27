@@ -28,10 +28,10 @@ pub async fn get_settings(state: State<'_, AppState>) -> Result<AppSettings, Str
     let theme = database::get_setting(&conn, "theme")
         .ok()
         .flatten()
-        .and_then(|v| match v.as_str() {
-            "light" => Some(Theme::Light),
-            "dark" => Some(Theme::Dark),
-            _ => Some(Theme::System),
+        .map(|v| match v.as_str() {
+            "light" => Theme::Light,
+            "dark" => Theme::Dark,
+            _ => Theme::System,
         })
         .unwrap_or(Theme::System);
 

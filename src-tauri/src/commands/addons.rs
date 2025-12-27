@@ -17,6 +17,7 @@ pub async fn get_installed_addons(
 
 /// Install an addon from a download URL
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn install_addon(
     slug: String,
     name: String,

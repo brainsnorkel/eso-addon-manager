@@ -95,3 +95,90 @@ pub async fn validate_github_repo(repo: &str) -> Result<bool> {
 
     Ok(response.status().is_success())
 }
+
+/// GitHub release information
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitHubReleaseInfo {
+    pub tag_name: String,
+    pub name: Option<String>,
+    pub download_url: String,
+    pub published_at: Option<String>,
+}
+
+/// Get the latest release information from a GitHub repository
+pub async fn get_github_release_info(repo: &str) -> Result<Option<GitHubReleaseInfo>> {
+    let client = reqwest::Client::new();
+    let url = format!("https://api.github.com/repos/{}/releases/latest", repo);
+
+    let response = client
+        .get(&url)
+        .header("User-Agent", "eso-addon-manager")
+        .header("Accept", "application/vnd.github.v3+json")
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Ok(None);
+    }
+
+    let data: serde_json::Value = response.json().await?;
+
+    let tag_name = data
+        .get("tag_name")
+        .and_then(|t| t.as_str())
+        .map(String::from);
+
+    let tag_name = match tag_name {
+        Some(t) => t,
+        None => return Ok(None),
+    };
+
+    let name = data.get("name").and_then(|n| n.as_str()).map(String::from);
+
+    let published_at = data
+        .get("published_at")
+        .and_then(|p| p.as_str())
+        .map(String::from);
+
+    // Look for a .zip asset first
+    let download_url = if let Some(assets) = data.get("assets").and_then(|a| a.as_array()) {
+        assets
+            .iter()
+            .find(|asset| {
+                asset
+                    .get("name")
+                    .and_then(|n| n.as_str())
+                    .map(|n| n.ends_with(".zip"))
+                    .unwrap_or(false)
+            })
+            .and_then(|asset| {
+                asset
+                    .get("browser_download_url")
+                    .and_then(|u| u.as_str())
+                    .map(String::from)
+            })
+    } else {
+        None
+    };
+
+    // Fallback to zipball URL
+    let download_url = download_url.unwrap_or_else(|| {
+        data.get("zipball_url")
+            .and_then(|u| u.as_str())
+            .map(String::from)
+            .unwrap_or_else(|| {
+                format!(
+                    "https://github.com/{}/archive/refs/tags/{}.zip",
+                    repo, tag_name
+                )
+            })
+    });
+
+    Ok(Some(GitHubReleaseInfo {
+        tag_name,
+        name,
+        download_url,
+        published_at,
+    }))
+}

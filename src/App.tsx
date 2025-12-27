@@ -14,9 +14,9 @@ function App() {
   const [activeView, setActiveView] = useState<View>('browse');
 
   // Initialize stores
-  const { addons, loading: indexLoading, fetchIndex, filteredAddons } = useIndexStore();
-  const { installed, fetchInstalled, loading: addonLoading } = useAddonStore();
-  const { fetchSettings, fetchAddonDirectory, addonDirectory } = useSettingsStore();
+  const { fetchIndex } = useIndexStore();
+  const { fetchInstalled } = useAddonStore();
+  const { fetchSettings, fetchAddonDirectory } = useSettingsStore();
 
   useEffect(() => {
     fetchSettings();
@@ -92,7 +92,7 @@ function BrowseView() {
 }
 
 function InstalledView() {
-  const { installed, loading, fetchInstalled, scanLocalAddons, scannedAddons } = useAddonStore();
+  const { installed, loading, fetchInstalled, scanLocalAddons } = useAddonStore();
 
   return (
     <>

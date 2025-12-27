@@ -1,7 +1,11 @@
-use crate::models::{CustomRepo, ReleaseType};
-use crate::services::{database, downloader};
+use crate::models::{
+    CustomRepo, DownloadProgress, DownloadStatus, InstalledAddon, ReleaseType, SourceType,
+};
+use crate::services::{database, downloader, installer};
 use crate::state::AppState;
-use tauri::State;
+use crate::utils::paths::get_eso_addon_path;
+use tauri::{Emitter, State, Window};
+use tempfile::NamedTempFile;
 
 /// Add a custom GitHub repository to track
 #[tauri::command]
@@ -152,4 +156,154 @@ pub struct GitHubRepoInfo {
     pub stars: u64,
     pub updated_at: Option<String>,
     pub has_releases: bool,
+}
+
+/// Install an addon from a GitHub repository
+#[tauri::command]
+pub async fn install_from_github(
+    repo: String,
+    release_type: Option<String>,
+    branch: Option<String>,
+    state: State<'_, AppState>,
+    window: Window,
+) -> Result<InstalledAddon, String> {
+    // Generate a slug from the repo name
+    let slug = repo
+        .split('/')
+        .next_back()
+        .unwrap_or(&repo)
+        .to_lowercase()
+        .replace(' ', "-");
+
+    // Emit initial progress
+    let _ = window.emit(
+        "download-progress",
+        DownloadProgress {
+            slug: slug.clone(),
+            status: DownloadStatus::Downloading,
+            progress: 0.0,
+            error: None,
+        },
+    );
+
+    let release_type = release_type
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(ReleaseType::Release);
+
+    // Get download URL and version based on release type
+    let (download_url, version) = if release_type == ReleaseType::Release {
+        let release_info = downloader::get_github_release_info(&repo)
+            .await
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("No releases found for {}", repo))?;
+
+        (release_info.download_url, release_info.tag_name)
+    } else {
+        let branch_name = branch.as_deref().unwrap_or("main");
+        let url = downloader::get_github_branch_url(&repo, branch_name).await;
+        (url, format!("branch:{}", branch_name))
+    };
+
+    // Create temp file for download
+    let temp_file =
+        NamedTempFile::new().map_err(|e| format!("Failed to create temp file: {}", e))?;
+    let temp_path = temp_file.path().to_path_buf();
+
+    // Download the addon
+    let window_clone = window.clone();
+    let slug_clone = slug.clone();
+    downloader::download_file(&download_url, &temp_path, move |progress| {
+        let _ = window_clone.emit(
+            "download-progress",
+            DownloadProgress {
+                slug: slug_clone.clone(),
+                status: DownloadStatus::Downloading,
+                progress,
+                error: None,
+            },
+        );
+    })
+    .await
+    .map_err(|e| format!("Download failed: {}", e))?;
+
+    // Emit extracting status
+    let _ = window.emit(
+        "download-progress",
+        DownloadProgress {
+            slug: slug.clone(),
+            status: DownloadStatus::Extracting,
+            progress: 0.0,
+            error: None,
+        },
+    );
+
+    // Get ESO addon directory
+    let addon_dir =
+        get_eso_addon_path().ok_or_else(|| "Could not find ESO addon directory".to_string())?;
+
+    // Install the addon
+    let installed_path = installer::install_from_archive(&temp_path, &addon_dir)
+        .map_err(|e| format!("Installation failed: {}", e))?;
+
+    // Get manifest path and addon name
+    let manifest_path = installer::get_manifest_path(&installed_path)
+        .ok_or_else(|| "Could not find addon manifest".to_string())?;
+
+    // Use the installed folder name as the addon name
+    let addon_name = installed_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(&slug)
+        .to_string();
+
+    // Update database
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let addon = database::insert_installed(
+        &conn,
+        &slug,
+        &addon_name,
+        &version,
+        SourceType::Github,
+        Some(&repo),
+        manifest_path.to_string_lossy().as_ref(),
+    )
+    .map_err(|e| e.to_string())?;
+
+    // Emit completion
+    let _ = window.emit(
+        "download-progress",
+        DownloadProgress {
+            slug: slug.clone(),
+            status: DownloadStatus::Complete,
+            progress: 1.0,
+            error: None,
+        },
+    );
+
+    Ok(addon)
+}
+
+/// Get release information for a GitHub repository
+#[tauri::command]
+pub async fn get_github_release(repo: String) -> Result<Option<GitHubReleaseInfo>, String> {
+    downloader::get_github_release_info(&repo)
+        .await
+        .map(|info| {
+            info.map(|i| GitHubReleaseInfo {
+                tag_name: i.tag_name,
+                name: i.name,
+                download_url: i.download_url,
+                published_at: i.published_at,
+            })
+        })
+        .map_err(|e| e.to_string())
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitHubReleaseInfo {
+    pub tag_name: String,
+    pub name: Option<String>,
+    pub download_url: String,
+    pub published_at: Option<String>,
 }

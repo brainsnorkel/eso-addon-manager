@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { InstalledAddon, UpdateInfo, ScannedAddon, DownloadProgress } from '../types/addon';
+import type { InstalledAddon, UpdateInfo, ScannedAddon } from '../types/addon';
 import type { AddonIndex, IndexStats } from '../types/index';
 import type { CustomRepo, GitHubRepoInfo } from '../types/github';
 import type { AppSettings } from '../types/settings';
@@ -72,6 +72,25 @@ export async function removeCustomRepo(repo: string): Promise<void> {
 
 export async function getGitHubRepoInfo(repo: string): Promise<GitHubRepoInfo> {
   return invoke('get_github_repo_info', { repo });
+}
+
+export async function installFromGitHub(
+  repo: string,
+  releaseType?: string,
+  branch?: string
+): Promise<InstalledAddon> {
+  return invoke('install_from_github', { repo, releaseType, branch });
+}
+
+export interface GitHubReleaseInfo {
+  tagName: string;
+  name?: string;
+  downloadUrl: string;
+  publishedAt?: string;
+}
+
+export async function getGitHubRelease(repo: string): Promise<GitHubReleaseInfo | null> {
+  return invoke('get_github_release', { repo });
 }
 
 // ============================================================================
