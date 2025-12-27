@@ -198,8 +198,11 @@ Current focus order:
 The addon index is hosted at:
 - **GitHub**: https://github.com/brainsnorkel/eso-addon-index
 - **JSON URL**: https://xop.co/eso-addon-index/
+- **Client Context**: https://github.com/brainsnorkel/eso-addon-index/blob/main/docs/addon-manager-client-context.md
 
 The app fetches this index automatically and caches it locally.
+
+**Important**: The client context document records current usage of the index API and should be consulted when implementing or modifying index-related features.
 
 ---
 
