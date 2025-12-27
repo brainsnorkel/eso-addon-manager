@@ -7,9 +7,8 @@ use std::fs;
 
 /// Initialize the database connection and run migrations
 pub fn init_database() -> Result<Connection> {
-    let db_path = get_database_path().ok_or(AppError::Custom(
-        "Could not determine database path".into(),
-    ))?;
+    let db_path =
+        get_database_path().ok_or(AppError::Custom("Could not determine database path".into()))?;
 
     // Ensure parent directory exists
     if let Some(parent) = db_path.parent() {

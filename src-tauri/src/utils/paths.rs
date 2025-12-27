@@ -46,7 +46,11 @@ pub fn get_app_data_path() -> Option<PathBuf> {
 
     #[cfg(target_os = "windows")]
     {
-        Some(base.data_local_dir().to_path_buf().join("eso-addon-manager"))
+        Some(
+            base.data_local_dir()
+                .to_path_buf()
+                .join("eso-addon-manager"),
+        )
     }
 
     #[cfg(target_os = "macos")]

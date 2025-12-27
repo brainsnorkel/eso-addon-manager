@@ -48,7 +48,10 @@ pub async fn get_settings(state: State<'_, AppState>) -> Result<AppSettings, Str
 
 /// Update application settings
 #[tauri::command]
-pub async fn update_settings(settings: AppSettings, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn update_settings(
+    settings: AppSettings,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
 
     if let Some(path) = &settings.eso_addon_path {
@@ -70,7 +73,11 @@ pub async fn update_settings(settings: AppSettings, state: State<'_, AppState>) 
     database::set_setting(
         &conn,
         "auto_update",
-        if settings.auto_update { "true" } else { "false" },
+        if settings.auto_update {
+            "true"
+        } else {
+            "false"
+        },
     )
     .map_err(|e| e.to_string())?;
 

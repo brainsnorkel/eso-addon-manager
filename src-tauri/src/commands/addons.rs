@@ -8,7 +8,9 @@ use tempfile::NamedTempFile;
 
 /// Get all installed addons
 #[tauri::command]
-pub async fn get_installed_addons(state: State<'_, AppState>) -> Result<Vec<InstalledAddon>, String> {
+pub async fn get_installed_addons(
+    state: State<'_, AppState>,
+) -> Result<Vec<InstalledAddon>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     database::get_all_installed(&conn).map_err(|e| e.to_string())
 }

@@ -45,8 +45,7 @@ pub fn scan_addon_directory(addon_dir: &Path) -> Result<Vec<ScannedAddon>> {
                             .map(|sv| sv_path.join(format!("{}.lua", sv)))
                     });
 
-                let has_saved_variables =
-                    saved_vars_path.map(|p| p.exists()).unwrap_or(false);
+                let has_saved_variables = saved_vars_path.map(|p| p.exists()).unwrap_or(false);
 
                 addons.push(ScannedAddon {
                     name: manifest.title.clone(),

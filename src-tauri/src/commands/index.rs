@@ -9,7 +9,10 @@ const DEFAULT_INDEX_URL: &str = "https://xop.co/eso-addon-index/";
 
 /// Fetch the addon index (from cache or remote)
 #[tauri::command]
-pub async fn fetch_index(force: Option<bool>, state: State<'_, AppState>) -> Result<AddonIndex, String> {
+pub async fn fetch_index(
+    force: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<AddonIndex, String> {
     let force = force.unwrap_or(false);
 
     // Check cache first (unless force refresh) - scope the lock
