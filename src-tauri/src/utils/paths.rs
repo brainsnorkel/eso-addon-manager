@@ -18,17 +18,24 @@ pub fn get_eso_addon_path_with_custom(custom_path: Option<&str>) -> Option<PathB
 }
 
 /// Get the default ESO addon directory for the current platform (without custom override)
+/// Creates the AddOns directory if the parent `live` directory exists
 pub fn get_default_eso_addon_path() -> Option<PathBuf> {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     {
         let user_dirs = UserDirs::new()?;
         let docs = user_dirs.document_dir()?;
-        let path = docs
-            .join("Elder Scrolls Online")
-            .join("live")
-            .join("AddOns");
+        let eso_live = docs.join("Elder Scrolls Online").join("live");
+        let path = eso_live.join("AddOns");
+
         if path.exists() {
             Some(path)
+        } else if eso_live.exists() {
+            // The live folder exists but AddOns doesn't - create it
+            if std::fs::create_dir_all(&path).is_ok() {
+                Some(path)
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -40,19 +47,31 @@ pub fn get_default_eso_addon_path() -> Option<PathBuf> {
         let home = base.home_dir();
 
         // Steam: ~/.steam/steam/steamapps/compatdata/306130/pfx/drive_c/users/steamuser/Documents/Elder Scrolls Online/live/AddOns
-        let steam_path = home
-            .join(".steam/steam/steamapps/compatdata/306130/pfx/drive_c/users/steamuser/Documents/Elder Scrolls Online/live/AddOns");
+        let steam_live = home
+            .join(".steam/steam/steamapps/compatdata/306130/pfx/drive_c/users/steamuser/Documents/Elder Scrolls Online/live");
+        let steam_path = steam_live.join("AddOns");
 
         if steam_path.exists() {
             return Some(steam_path);
+        } else if steam_live.exists() {
+            // The live folder exists but AddOns doesn't - create it
+            if std::fs::create_dir_all(&steam_path).is_ok() {
+                return Some(steam_path);
+            }
         }
 
         // Fallback: check common Lutris paths
-        let lutris_path = home
-            .join("Games/elder-scrolls-online/drive_c/users/steamuser/Documents/Elder Scrolls Online/live/AddOns");
+        let lutris_live = home
+            .join("Games/elder-scrolls-online/drive_c/users/steamuser/Documents/Elder Scrolls Online/live");
+        let lutris_path = lutris_live.join("AddOns");
 
         if lutris_path.exists() {
             return Some(lutris_path);
+        } else if lutris_live.exists() {
+            // The live folder exists but AddOns doesn't - create it
+            if std::fs::create_dir_all(&lutris_path).is_ok() {
+                return Some(lutris_path);
+            }
         }
 
         // Return None to prompt user for path
