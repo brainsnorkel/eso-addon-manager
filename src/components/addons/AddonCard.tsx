@@ -7,6 +7,13 @@ interface AddonCardProps {
   addon: IndexAddon;
 }
 
+// Construct download URL from branch when no release exists
+function getBranchDownloadUrl(addon: IndexAddon): string | null {
+  if (addon.source.type !== 'github') return null;
+  const { repo, branch } = addon.source;
+  return `https://api.github.com/repos/${repo}/zipball/${branch}`;
+}
+
 export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
   const { installed, downloads, installAddon, uninstallAddon } = useAddonStore();
 
@@ -14,19 +21,19 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
   const isInstalled = !!installedAddon;
   const downloadState = downloads.get(addon.slug);
 
+  // Use release URL if available, otherwise fall back to branch
+  const downloadUrl = addon.latest_release?.download_url ?? getBranchDownloadUrl(addon);
+  const version = addon.latest_release?.version ?? `${addon.source.branch}-latest`;
+  const canInstall = !!downloadUrl;
+
   const hasUpdate =
     isInstalled &&
     addon.latest_release &&
     installedAddon.installedVersion !== addon.latest_release.version;
 
   const handleInstall = async () => {
-    if (!addon.latest_release) return;
-    await installAddon(
-      addon.slug,
-      addon.name,
-      addon.latest_release.version,
-      addon.latest_release.download_url
-    );
+    if (!downloadUrl) return;
+    await installAddon(addon.slug, addon.name, version, downloadUrl);
   };
 
   const handleUninstall = async () => {
@@ -71,7 +78,7 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
 
       <div className="mt-4 flex items-center justify-between">
         <span className="text-sm text-gray-500">
-          {addon.latest_release?.version ?? 'No release'}
+          {addon.latest_release?.version ?? (canInstall ? 'Branch: ' + addon.source.branch : 'No release')}
           {isInstalled && (
             <span className="ml-2 text-green-400">
               (installed: {installedAddon.installedVersion})
@@ -107,7 +114,7 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
             <Button
               size="sm"
               onClick={handleInstall}
-              disabled={!addon.latest_release}
+              disabled={!canInstall}
             >
               Install
             </Button>
