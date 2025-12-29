@@ -3,6 +3,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { Button } from '../common/Button';
 import { useAddonStore } from '../../stores/addonStore';
 import type { IndexAddon } from '../../types/index';
+import type { InstalledAddon } from '../../types/addon';
 
 interface AddonCardProps {
   addon: IndexAddon;
@@ -15,10 +16,33 @@ function getBranchDownloadUrl(addon: IndexAddon): string | null {
   return `https://api.github.com/repos/${repo}/zipball/${branch}`;
 }
 
+// Find installed addon by matching slug, target folder, or name
+function findInstalledAddon(addon: IndexAddon, installed: InstalledAddon[]): InstalledAddon | undefined {
+  const slugLower = addon.slug.toLowerCase();
+  const targetFolder = addon.install.target_folder.toLowerCase();
+  const nameLower = addon.name.toLowerCase();
+
+  return installed.find((i) => {
+    const installedSlug = i.slug.toLowerCase();
+    const installedName = i.name.toLowerCase();
+
+    // Exact slug match
+    if (installedSlug === slugLower) return true;
+
+    // Target folder match (for locally scanned addons)
+    if (installedSlug === targetFolder) return true;
+
+    // Name match (fallback)
+    if (installedName === nameLower) return true;
+
+    return false;
+  });
+}
+
 export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
   const { installed, downloads, installAddon, uninstallAddon } = useAddonStore();
 
-  const installedAddon = installed.find((i) => i.slug === addon.slug);
+  const installedAddon = findInstalledAddon(addon, installed);
   const isInstalled = !!installedAddon;
   const downloadState = downloads.get(addon.slug);
 
@@ -38,7 +62,10 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
   };
 
   const handleUninstall = async () => {
-    await uninstallAddon(addon.slug);
+    // Use the installed addon's actual slug (may differ from index slug for local addons)
+    if (installedAddon) {
+      await uninstallAddon(installedAddon.slug);
+    }
   };
 
   const handleOpenDocs = async () => {
