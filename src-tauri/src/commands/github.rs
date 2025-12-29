@@ -3,9 +3,23 @@ use crate::models::{
 };
 use crate::services::{database, downloader, installer};
 use crate::state::AppState;
-use crate::utils::paths::get_eso_addon_path;
+use crate::utils::paths::get_eso_addon_path_with_custom;
+use std::path::PathBuf;
 use tauri::{Emitter, State, Window};
 use tempfile::NamedTempFile;
+
+/// Helper to get the ESO addon path, checking database for custom path first
+fn get_addon_path_from_state(state: &State<'_, AppState>) -> Result<PathBuf, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let custom_path = database::get_setting(&conn, "eso_addon_path")
+        .ok()
+        .flatten();
+    drop(conn);
+
+    get_eso_addon_path_with_custom(custom_path.as_deref()).ok_or_else(|| {
+        "Could not find ESO addon directory. Please set it manually in Settings.".to_string()
+    })
+}
 
 /// Add a custom GitHub repository to track
 #[tauri::command]
@@ -237,9 +251,8 @@ pub async fn install_from_github(
         },
     );
 
-    // Get ESO addon directory
-    let addon_dir =
-        get_eso_addon_path().ok_or_else(|| "Could not find ESO addon directory".to_string())?;
+    // Get ESO addon directory (checks custom path from database first)
+    let addon_dir = get_addon_path_from_state(&state)?;
 
     // Install the addon
     let installed_path = installer::install_from_archive(&temp_path, &addon_dir)

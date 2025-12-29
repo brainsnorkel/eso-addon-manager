@@ -3,18 +3,103 @@ use crate::models::{
 };
 use crate::services::{database, downloader, installer, scanner};
 use crate::state::AppState;
-use crate::utils::paths::get_eso_addon_path;
+use crate::utils::paths::get_eso_addon_path_with_custom;
 use std::path::PathBuf;
 use tauri::{Emitter, State, Window};
 use tempfile::NamedTempFile;
 
-/// Get all installed addons
+/// Helper to get the ESO addon path, checking database for custom path first
+fn get_addon_path_from_state(state: &State<'_, AppState>) -> Result<PathBuf, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let custom_path = database::get_setting(&conn, "eso_addon_path")
+        .ok()
+        .flatten();
+    drop(conn); // Release lock before potentially long operations
+
+    get_eso_addon_path_with_custom(custom_path.as_deref()).ok_or_else(|| {
+        "Could not find ESO addon directory. Please set it manually in Settings.".to_string()
+    })
+}
+
+/// Get all installed addons (from database + auto-discovered from filesystem)
 #[tauri::command]
 pub async fn get_installed_addons(
     state: State<'_, AppState>,
 ) -> Result<Vec<InstalledAddon>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    database::get_all_installed(&conn).map_err(|e| e.to_string())
+
+    // Get addons already in database
+    let mut db_addons = database::get_all_installed(&conn).map_err(|e| e.to_string())?;
+
+    // Get custom path setting
+    let custom_path = database::get_setting(&conn, "eso_addon_path")
+        .ok()
+        .flatten();
+
+    // Try to scan the addon directory for untracked addons
+    if let Some(addon_dir) = get_eso_addon_path_with_custom(custom_path.as_deref()) {
+        if let Ok(scanned) = scanner::scan_addon_directory(&addon_dir) {
+            // Create a set of manifest paths already in database for quick lookup
+            let db_manifest_paths: std::collections::HashSet<_> =
+                db_addons.iter().map(|a| a.manifest_path.clone()).collect();
+
+            // Also track folder names from database addons
+            let db_folders: std::collections::HashSet<_> = db_addons
+                .iter()
+                .filter_map(|a| {
+                    PathBuf::from(&a.manifest_path)
+                        .parent()
+                        .and_then(|p| p.file_name())
+                        .and_then(|n| n.to_str())
+                        .map(|s| s.to_lowercase())
+                })
+                .collect();
+
+            for scanned_addon in scanned {
+                let scanned_folder = PathBuf::from(&scanned_addon.path)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|s| s.to_lowercase())
+                    .unwrap_or_default();
+
+                // Check if this addon is already tracked
+                let manifest_path = addon_dir
+                    .join(&scanned_folder)
+                    .join(format!("{}.txt", scanned_folder));
+                let manifest_str = manifest_path.to_string_lossy().to_string();
+
+                if !db_manifest_paths.contains(&scanned_addon.path)
+                    && !db_manifest_paths.contains(&manifest_str)
+                    && !db_folders.contains(&scanned_folder)
+                {
+                    // Auto-import this addon as a local addon
+                    let slug = scanned_folder.clone();
+                    let version = scanned_addon
+                        .manifest
+                        .version
+                        .clone()
+                        .unwrap_or_else(|| "unknown".to_string());
+
+                    if let Ok(addon) = database::insert_installed(
+                        &conn,
+                        &slug,
+                        &scanned_addon.name,
+                        &version,
+                        SourceType::Local,
+                        None,
+                        &scanned_addon.path,
+                    ) {
+                        db_addons.push(addon);
+                    }
+                }
+            }
+
+            // Re-sort by name after adding new addons
+            db_addons.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        }
+    }
+
+    Ok(db_addons)
 }
 
 /// Install an addon from a download URL with optional install info from the index
@@ -75,9 +160,8 @@ pub async fn install_addon(
         },
     );
 
-    // Get ESO addon directory
-    let addon_dir =
-        get_eso_addon_path().ok_or_else(|| "Could not find ESO addon directory".to_string())?;
+    // Get ESO addon directory (checks custom path from database first)
+    let addon_dir = get_addon_path_from_state(&state)?;
 
     // Install the addon using install_info if provided (index addons), otherwise fallback to auto-detection
     let installed_path = if let Some(ref info) = install_info {
@@ -150,10 +234,10 @@ pub async fn uninstall_addon(slug: String, state: State<'_, AppState>) -> Result
 
 /// Scan local addon directory for untracked addons
 #[tauri::command]
-pub async fn scan_local_addons() -> Result<Vec<scanner::ScannedAddon>, String> {
-    let addon_dir =
-        get_eso_addon_path().ok_or_else(|| "Could not find ESO addon directory".to_string())?;
-
+pub async fn scan_local_addons(
+    state: State<'_, AppState>,
+) -> Result<Vec<scanner::ScannedAddon>, String> {
+    let addon_dir = get_addon_path_from_state(&state)?;
     scanner::scan_addon_directory(&addon_dir).map_err(|e| e.to_string())
 }
 
@@ -197,8 +281,15 @@ pub async fn check_updates(state: State<'_, AppState>) -> Result<Vec<UpdateInfo>
 
 /// Get the ESO addon directory path
 #[tauri::command]
-pub async fn get_addon_directory() -> Result<Option<String>, String> {
-    Ok(get_eso_addon_path().map(|p| p.to_string_lossy().to_string()))
+pub async fn get_addon_directory(state: State<'_, AppState>) -> Result<Option<String>, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let custom_path = database::get_setting(&conn, "eso_addon_path")
+        .ok()
+        .flatten();
+    drop(conn);
+
+    Ok(get_eso_addon_path_with_custom(custom_path.as_deref())
+        .map(|p| p.to_string_lossy().to_string()))
 }
 
 /// Set a custom ESO addon directory path

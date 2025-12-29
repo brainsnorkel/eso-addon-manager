@@ -3,17 +3,35 @@ use directories::BaseDirs;
 use directories::UserDirs;
 use std::path::PathBuf;
 
-/// Get the ESO addon directory for the current platform
-pub fn get_eso_addon_path() -> Option<PathBuf> {
+/// Get the ESO addon directory, checking custom path first, then platform defaults
+pub fn get_eso_addon_path_with_custom(custom_path: Option<&str>) -> Option<PathBuf> {
+    // First, check if a custom path is set and valid
+    if let Some(path_str) = custom_path {
+        let custom = PathBuf::from(path_str);
+        if custom.exists() && custom.is_dir() {
+            return Some(custom);
+        }
+    }
+
+    // Fall back to platform-specific detection
+    get_default_eso_addon_path()
+}
+
+/// Get the default ESO addon directory for the current platform (without custom override)
+pub fn get_default_eso_addon_path() -> Option<PathBuf> {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     {
         let user_dirs = UserDirs::new()?;
         let docs = user_dirs.document_dir()?;
-        Some(
-            docs.join("Elder Scrolls Online")
-                .join("live")
-                .join("AddOns"),
-        )
+        let path = docs
+            .join("Elder Scrolls Online")
+            .join("live")
+            .join("AddOns");
+        if path.exists() {
+            Some(path)
+        } else {
+            None
+        }
     }
 
     #[cfg(target_os = "linux")]
@@ -40,6 +58,11 @@ pub fn get_eso_addon_path() -> Option<PathBuf> {
         // Return None to prompt user for path
         None
     }
+}
+
+/// Get the ESO addon directory for the current platform (legacy function for compatibility)
+pub fn get_eso_addon_path() -> Option<PathBuf> {
+    get_default_eso_addon_path()
 }
 
 /// Get the application data directory
