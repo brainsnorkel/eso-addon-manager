@@ -1,23 +1,86 @@
 use crate::error::Result;
+use crate::models::InstallInfo;
 use std::fs::{self, File};
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Extract a ZIP archive to the target directory
 pub fn extract_archive(archive_path: &Path, target_dir: &Path) -> Result<Vec<String>> {
+    extract_archive_with_options(archive_path, target_dir, None)
+}
+
+/// Extract a ZIP archive with install options (extract_path and excludes)
+pub fn extract_archive_with_options(
+    archive_path: &Path,
+    target_dir: &Path,
+    install_info: Option<&InstallInfo>,
+) -> Result<Vec<String>> {
     let file = File::open(archive_path)?;
     let mut archive = zip::ZipArchive::new(file)?;
     let mut extracted_paths = Vec::new();
 
+    // Get exclude patterns and extract path from install info
+    let empty_excludes = Vec::new();
+    let excludes = install_info.map(|i| &i.excludes).unwrap_or(&empty_excludes);
+    let extract_path = install_info.and_then(|i| i.extract_path.as_deref());
+
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)?;
-        let outpath = match file.enclosed_name() {
-            Some(path) => target_dir.join(path),
+        let enclosed = match file.enclosed_name() {
+            Some(path) => path.to_path_buf(),
             None => continue,
         };
 
+        // Handle extract_path: adjust the path relative to extract_path if specified
+        let adjusted_path = if let Some(extract_prefix) = extract_path {
+            // For GitHub archives, the first component is typically "repo-branch/"
+            // We need to find the extract_path within that structure
+            let components: Vec<_> = enclosed.components().collect();
+            if components.len() < 2 {
+                continue; // Skip root-level items in the archive
+            }
+
+            // Skip the first component (archive root like "repo-main/")
+            let inner_path: PathBuf = components[1..].iter().collect();
+
+            // Check if this path starts with our extract_path
+            if let Ok(stripped) = inner_path.strip_prefix(extract_prefix) {
+                stripped.to_path_buf()
+            } else if inner_path.to_string_lossy() == extract_prefix {
+                // This is the extract_path directory itself
+                PathBuf::new()
+            } else {
+                continue; // Skip files not under extract_path
+            }
+        } else {
+            // No extract_path: strip only the archive root folder
+            let components: Vec<_> = enclosed.components().collect();
+            if components.is_empty() {
+                continue;
+            }
+            if components.len() == 1 {
+                PathBuf::new() // Archive root directory
+            } else {
+                components[1..].iter().collect()
+            }
+        };
+
+        // Skip empty paths (the root directories themselves)
+        if adjusted_path.as_os_str().is_empty() && !file.is_dir() {
+            continue;
+        }
+
+        // Check if any path component matches an exclude pattern
+        if should_exclude(&adjusted_path, excludes) {
+            continue;
+        }
+
+        let outpath = target_dir.join(&adjusted_path);
+
         if file.is_dir() {
-            fs::create_dir_all(&outpath)?;
+            if !adjusted_path.as_os_str().is_empty() {
+                fs::create_dir_all(&outpath)?;
+            }
         } else {
             if let Some(parent) = outpath.parent() {
                 if !parent.exists() {
@@ -43,6 +106,49 @@ pub fn extract_archive(archive_path: &Path, target_dir: &Path) -> Result<Vec<Str
     }
 
     Ok(extracted_paths)
+}
+
+/// Check if a path should be excluded based on glob patterns
+fn should_exclude(path: &Path, excludes: &[String]) -> bool {
+    for component in path.components() {
+        let component_str = component.as_os_str().to_string_lossy();
+        for pattern in excludes {
+            if matches_glob_pattern(&component_str, pattern) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Simple glob pattern matching for exclude patterns
+/// Supports: * (any chars), .* (hidden files), *.ext (extension match)
+fn matches_glob_pattern(name: &str, pattern: &str) -> bool {
+    // Exact match
+    if name == pattern {
+        return true;
+    }
+
+    // Pattern ".*" matches hidden files/directories (starting with .)
+    if pattern == ".*" && name.starts_with('.') {
+        return true;
+    }
+
+    // Pattern "*.ext" matches files with that extension
+    if let Some(ext) = pattern.strip_prefix("*.") {
+        if name.ends_with(&format!(".{}", ext)) {
+            return true;
+        }
+    }
+
+    // Pattern "*suffix" matches files ending with suffix
+    if let Some(suffix) = pattern.strip_prefix('*') {
+        if !suffix.is_empty() && name.ends_with(suffix) {
+            return true;
+        }
+    }
+
+    false
 }
 
 /// Find the root addon directory inside an extracted archive

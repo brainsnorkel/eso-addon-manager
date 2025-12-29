@@ -19,6 +19,7 @@ export interface IndexAddon {
   url?: string; // Link to addon docs/homepage
   source: AddonSource;
   compatibility: AddonCompatibility;
+  install: InstallInfo;
   latest_release?: AddonRelease;
 }
 
@@ -27,6 +28,15 @@ export interface AddonSource {
   type: 'github' | 'gitlab' | 'custom';
   repo: string;
   branch: string;
+  path?: string; // Optional path within the repo for monorepo structures
+}
+
+/** Installation instructions for an addon */
+export interface InstallInfo {
+  method: 'branch' | 'github_release' | 'github_archive';
+  extract_path?: string; // Path within the archive to extract from (null for root-level addons)
+  target_folder: string; // Target folder name in the ESO AddOns directory
+  excludes: string[]; // Glob patterns for files/directories to exclude
 }
 
 /** Compatibility information for an addon */

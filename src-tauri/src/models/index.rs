@@ -30,6 +30,8 @@ pub struct IndexAddon {
     pub url: Option<String>,
     pub source: AddonSource,
     pub compatibility: AddonCompatibility,
+    /// Installation instructions
+    pub install: InstallInfo,
     pub latest_release: Option<AddonRelease>,
 }
 
@@ -40,6 +42,24 @@ pub struct AddonSource {
     pub source_type: String,
     pub repo: String,
     pub branch: String,
+    /// Optional path within the repo for monorepo structures
+    #[serde(default)]
+    pub path: Option<String>,
+}
+
+/// Installation instructions for an addon
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InstallInfo {
+    /// Installation method: "branch", "github_release", or "github_archive"
+    pub method: String,
+    /// Path within the archive to extract from (null for root-level addons)
+    #[serde(default)]
+    pub extract_path: Option<String>,
+    /// Target folder name in the ESO AddOns directory
+    pub target_folder: String,
+    /// Glob patterns for files/directories to exclude
+    #[serde(default)]
+    pub excludes: Vec<String>,
 }
 
 /// Compatibility information for an addon

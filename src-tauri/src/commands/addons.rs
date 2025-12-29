@@ -1,4 +1,6 @@
-use crate::models::{DownloadProgress, DownloadStatus, InstalledAddon, SourceType, UpdateInfo};
+use crate::models::{
+    DownloadProgress, DownloadStatus, InstallInfo, InstalledAddon, SourceType, UpdateInfo,
+};
 use crate::services::{database, downloader, installer, scanner};
 use crate::state::AppState;
 use crate::utils::paths::get_eso_addon_path;
@@ -15,7 +17,7 @@ pub async fn get_installed_addons(
     database::get_all_installed(&conn).map_err(|e| e.to_string())
 }
 
-/// Install an addon from a download URL
+/// Install an addon from a download URL with optional install info from the index
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub async fn install_addon(
@@ -25,6 +27,7 @@ pub async fn install_addon(
     download_url: String,
     source_type: Option<String>,
     source_repo: Option<String>,
+    install_info: Option<InstallInfo>,
     state: State<'_, AppState>,
     window: Window,
 ) -> Result<InstalledAddon, String> {
@@ -76,9 +79,14 @@ pub async fn install_addon(
     let addon_dir =
         get_eso_addon_path().ok_or_else(|| "Could not find ESO addon directory".to_string())?;
 
-    // Install the addon
-    let installed_path = installer::install_from_archive(&temp_path, &addon_dir)
-        .map_err(|e| format!("Installation failed: {}", e))?;
+    // Install the addon using install_info if provided (index addons), otherwise fallback to auto-detection
+    let installed_path = if let Some(ref info) = install_info {
+        installer::install_from_archive_with_info(&temp_path, &addon_dir, info)
+            .map_err(|e| format!("Installation failed: {}", e))?
+    } else {
+        installer::install_from_archive(&temp_path, &addon_dir)
+            .map_err(|e| format!("Installation failed: {}", e))?
+    };
 
     // Get manifest path
     let manifest_path = installer::get_manifest_path(&installed_path)

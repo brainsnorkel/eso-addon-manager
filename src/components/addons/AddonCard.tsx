@@ -34,7 +34,7 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
 
   const handleInstall = async () => {
     if (!downloadUrl) return;
-    await installAddon(addon.slug, addon.name, version, downloadUrl);
+    await installAddon(addon.slug, addon.name, version, downloadUrl, addon.install);
   };
 
   const handleUninstall = async () => {
@@ -51,23 +51,19 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
     <div className="bg-gray-800 rounded-lg p-4 hover:bg-gray-750 transition-colors border border-gray-700">
       <div className="flex justify-between items-start gap-4">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-gray-100 truncate">{addon.name}</h3>
-            {addon.url && (
-              <button
-                onClick={handleOpenDocs}
-                className="text-gray-500 hover:text-amber-400 transition-colors"
-                title="View documentation"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </button>
-            )}
-          </div>
+          <h3 className="font-semibold text-gray-100 truncate">{addon.name}</h3>
           <p className="text-sm text-gray-400 mt-0.5">
             {addon.authors.join(', ')}
           </p>
+          {addon.url && (
+            <button
+              onClick={handleOpenDocs}
+              className="text-xs text-amber-500/70 hover:text-amber-400 transition-colors mt-0.5 truncate max-w-full text-left"
+              title={addon.url}
+            >
+              {addon.url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
+            </button>
+          )}
         </div>
         <span className="px-2 py-1 text-xs rounded-full bg-gray-700 text-gray-300 whitespace-nowrap">
           {addon.category}

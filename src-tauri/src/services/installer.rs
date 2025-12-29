@@ -1,11 +1,42 @@
 use crate::error::{AppError, Result};
+use crate::models::InstallInfo;
 use crate::utils::manifest::find_manifests;
-use crate::utils::zip::{extract_archive, find_addon_root};
+use crate::utils::zip::{extract_archive, extract_archive_with_options, find_addon_root};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
-/// Install an addon from a downloaded archive
+/// Install an addon from a downloaded archive using explicit install info from the index
+pub fn install_from_archive_with_info(
+    archive_path: &Path,
+    addon_dir: &Path,
+    install_info: &InstallInfo,
+) -> Result<PathBuf> {
+    // Target path using the explicit target_folder from install info
+    let target_path = addon_dir.join(&install_info.target_folder);
+
+    // Remove existing addon if present
+    if target_path.exists() {
+        fs::remove_dir_all(&target_path)?;
+    }
+
+    // Create target directory
+    fs::create_dir_all(&target_path)?;
+
+    // Extract directly to target path with install options (handles extract_path and excludes)
+    extract_archive_with_options(archive_path, &target_path, Some(install_info))?;
+
+    // Verify the addon was extracted correctly by checking for manifest
+    if !has_addon_content(&target_path) {
+        return Err(AppError::InvalidManifest(
+            "No addon manifest found after extraction".into(),
+        ));
+    }
+
+    Ok(target_path)
+}
+
+/// Install an addon from a downloaded archive (legacy fallback for custom repos without install info)
 pub fn install_from_archive(archive_path: &Path, addon_dir: &Path) -> Result<PathBuf> {
     // Create a temporary directory for extraction
     let temp_dir = TempDir::new()?;
@@ -33,6 +64,27 @@ pub fn install_from_archive(archive_path: &Path, addon_dir: &Path) -> Result<Pat
     copy_dir_recursive(&addon_root, &target_path)?;
 
     Ok(target_path)
+}
+
+/// Check if a directory contains addon content (manifest file)
+fn has_addon_content(dir: &Path) -> bool {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let is_manifest_ext = path
+                .extension()
+                .map(|e| e == "txt" || e == "addon")
+                .unwrap_or(false);
+            if is_manifest_ext {
+                if let Ok(content) = fs::read_to_string(&path) {
+                    if content.contains("## Title:") {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
 }
 
 /// Uninstall an addon by removing its directory
