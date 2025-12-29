@@ -113,6 +113,12 @@ pub struct UpdateInfo {
     pub current_version: String,
     pub new_version: String,
     pub download_url: String,
+    /// Source type for the addon (index, github, local)
+    pub source_type: SourceType,
+    /// Repository for GitHub addons
+    pub source_repo: Option<String>,
+    /// Installation info for proper extraction (from index)
+    pub install_info: Option<super::InstallInfo>,
 }
 
 /// Download progress event

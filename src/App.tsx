@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { Button } from './components/common/Button';
+import { UpdateBanner } from './components/common/UpdateBanner';
 import { SearchBar } from './components/search/SearchBar';
 import { AddonCard } from './components/addons/AddonCard';
 import { useIndexStore } from './stores/indexStore';
@@ -44,11 +45,14 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-900 text-gray-100">
-      <Sidebar activeView={activeView} onViewChange={(v) => setActiveView(v as View)} />
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {renderContent()}
-      </main>
+    <div className="flex flex-col h-screen bg-gray-900 text-gray-100">
+      <UpdateBanner />
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar activeView={activeView} onViewChange={(v) => setActiveView(v as View)} />
+        <main className="flex-1 flex flex-col overflow-hidden">
+          {renderContent()}
+        </main>
+      </div>
     </div>
   );
 }

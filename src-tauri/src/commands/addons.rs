@@ -4,6 +4,7 @@ use crate::models::{
 use crate::services::{database, downloader, installer, scanner};
 use crate::state::AppState;
 use crate::utils::paths::get_eso_addon_path_with_custom;
+use crate::utils::version::is_update_available;
 use std::path::PathBuf;
 use tauri::{Emitter, State, Window};
 use tempfile::NamedTempFile;

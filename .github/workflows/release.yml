@@ -77,6 +77,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.event.inputs.version || github.ref_name }}
           releaseName: 'ESO Addon Manager ${{ github.event.inputs.version || github.ref_name }}'
@@ -101,11 +103,15 @@ jobs:
             - **Debian/Ubuntu**: `sudo dpkg -i eso-addon-manager_*.deb`
             - **Fedora/RHEL**: `sudo rpm -i eso-addon-manager-*.rpm`
 
+            ### Auto-Updates
+            The app will automatically check for updates on startup.
+
             See [CHANGELOG.md](CHANGELOG.md) for release notes.
           releaseDraft: true
           prerelease: false
           args: --target ${{ matrix.target }}
-          includeUpdaterJson: false
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
