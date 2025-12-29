@@ -16,6 +16,7 @@ export interface IndexAddon {
   license?: string;
   category: string;
   tags: string[];
+  url?: string; // Link to addon docs/homepage
   source: AddonSource;
   compatibility: AddonCompatibility;
   latest_release?: AddonRelease;

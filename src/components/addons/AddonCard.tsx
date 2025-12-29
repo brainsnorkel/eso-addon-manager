@@ -1,4 +1,5 @@
 import { FC } from 'react';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { Button } from '../common/Button';
 import { useAddonStore } from '../../stores/addonStore';
 import type { IndexAddon } from '../../types/index';
@@ -40,11 +41,30 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
     await uninstallAddon(addon.slug);
   };
 
+  const handleOpenDocs = async () => {
+    if (addon.url) {
+      await openUrl(addon.url);
+    }
+  };
+
   return (
     <div className="bg-gray-800 rounded-lg p-4 hover:bg-gray-750 transition-colors border border-gray-700">
       <div className="flex justify-between items-start gap-4">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-100 truncate">{addon.name}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-gray-100 truncate">{addon.name}</h3>
+            {addon.url && (
+              <button
+                onClick={handleOpenDocs}
+                className="text-gray-500 hover:text-amber-400 transition-colors"
+                title="View documentation"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </button>
+            )}
+          </div>
           <p className="text-sm text-gray-400 mt-0.5">
             {addon.authors.join(', ')}
           </p>

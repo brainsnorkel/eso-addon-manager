@@ -26,6 +26,8 @@ pub struct IndexAddon {
     pub license: Option<String>,
     pub category: String,
     pub tags: Vec<String>,
+    /// Link to addon docs/homepage
+    pub url: Option<String>,
     pub source: AddonSource,
     pub compatibility: AddonCompatibility,
     pub latest_release: Option<AddonRelease>,
