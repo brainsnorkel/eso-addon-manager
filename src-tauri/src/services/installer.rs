@@ -101,7 +101,7 @@ pub fn get_manifest_path(addon_path: &Path) -> Option<PathBuf> {
 /// The manifest filename determines the required addon folder name
 /// e.g., "WarMask.txt" means the addon must be in a "WarMask" folder
 fn get_addon_name_from_manifest(addon_root: &Path) -> Result<String> {
-    let manifests = find_manifests(addon_root);
+    let mut manifests = find_manifests(addon_root);
 
     if manifests.is_empty() {
         return Err(AppError::InvalidManifest(
@@ -109,7 +109,25 @@ fn get_addon_name_from_manifest(addon_root: &Path) -> Result<String> {
         ));
     }
 
-    // Use the first manifest's filename as the addon name
+    // Sort manifests to prefer "real" addons over examples:
+    // 1. Exclude manifests starting with underscore (e.g., _example_addon)
+    // 2. Exclude manifests containing "example" in the name
+    // 3. Prefer manifests with capitalized names (typical addon naming)
+    manifests.sort_by(|a, b| {
+        let a_name = a.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        let b_name = b.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+
+        let a_is_example = a_name.starts_with('_') || a_name.to_lowercase().contains("example");
+        let b_is_example = b_name.starts_with('_') || b_name.to_lowercase().contains("example");
+
+        // Non-examples come first
+        match (a_is_example, b_is_example) {
+            (true, false) => std::cmp::Ordering::Greater,
+            (false, true) => std::cmp::Ordering::Less,
+            _ => a_name.cmp(b_name), // Alphabetical as tiebreaker
+        }
+    });
+
     let manifest_path = &manifests[0];
     manifest_path
         .file_stem()

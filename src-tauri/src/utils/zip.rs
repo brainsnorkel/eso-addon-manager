@@ -57,15 +57,17 @@ pub fn find_addon_root(extracted_dir: &Path) -> Option<std::path::PathBuf> {
     if let Ok(entries) = fs::read_dir(extracted_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_dir() {
+            if path.is_dir() && !is_example_dir(&path) {
                 if has_manifest(&path) {
                     return Some(path);
                 }
                 // Check second-level subdirectories (for repos like LibAddonMenu)
+                // Skip example directories
                 if let Ok(sub_entries) = fs::read_dir(&path) {
                     for sub_entry in sub_entries.flatten() {
                         let sub_path = sub_entry.path();
-                        if sub_path.is_dir() && has_manifest(&sub_path) {
+                        if sub_path.is_dir() && !is_example_dir(&sub_path) && has_manifest(&sub_path)
+                        {
                             return Some(sub_path);
                         }
                     }
@@ -75,6 +77,17 @@ pub fn find_addon_root(extracted_dir: &Path) -> Option<std::path::PathBuf> {
     }
 
     None
+}
+
+/// Check if a directory looks like an example/test addon that should be skipped
+fn is_example_dir(dir: &Path) -> bool {
+    if let Some(name) = dir.file_name().and_then(|n| n.to_str()) {
+        let lower = name.to_lowercase();
+        // Skip directories that are clearly examples or tests
+        lower.contains("example") || lower.contains("_test") || name.starts_with('_')
+    } else {
+        false
+    }
 }
 
 /// Check if a directory contains an addon manifest
