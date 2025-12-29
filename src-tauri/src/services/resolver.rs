@@ -303,6 +303,8 @@ mod tests {
                 file_size: None,
                 checksum: None,
                 commit_sha: None,
+                commit_date: None,
+                commit_message: None,
             }),
             version_info: None,
         }
