@@ -49,7 +49,9 @@ pub fn scan_addon_directory(addon_dir: &Path) -> Result<Vec<ScannedAddon>> {
 
                 addons.push(ScannedAddon {
                     name: manifest.title.clone(),
-                    path: path.to_string_lossy().to_string(),
+                    // Store the manifest file path, not the folder path
+                    // This is important for uninstall to work correctly
+                    path: manifest_path.to_string_lossy().to_string(),
                     manifest,
                     has_saved_variables,
                 });

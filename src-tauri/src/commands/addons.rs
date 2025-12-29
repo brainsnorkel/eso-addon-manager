@@ -67,17 +67,19 @@ pub async fn get_installed_addons(
                 .collect();
 
             for scanned_addon in scanned {
-                let scanned_folder = PathBuf::from(&scanned_addon.path)
-                    .file_name()
+                // scanned_addon.path is the manifest file path (e.g., /AddOns/LibAddonMenu/LibAddonMenu.txt)
+                // Get the parent folder name for matching
+                let scanned_path = PathBuf::from(&scanned_addon.path);
+                let scanned_folder = scanned_path
+                    .parent()
+                    .and_then(|p| p.file_name())
                     .and_then(|n| n.to_str())
                     .map(|s| s.to_lowercase())
                     .unwrap_or_default();
 
                 // Check if this addon is already tracked
-                let manifest_path = addon_dir
-                    .join(&scanned_folder)
-                    .join(format!("{}.txt", scanned_folder));
-                let manifest_str = manifest_path.to_string_lossy().to_string();
+                // scanned_addon.path is already the full manifest path
+                let manifest_str = scanned_addon.path.clone();
 
                 if !db_manifest_paths.contains(&scanned_addon.path)
                     && !db_manifest_paths.contains(&manifest_str)
