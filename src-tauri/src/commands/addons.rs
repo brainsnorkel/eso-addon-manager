@@ -9,6 +9,16 @@ use std::path::PathBuf;
 use tauri::{Emitter, State, Window};
 use tempfile::NamedTempFile;
 
+/// Version tracking info passed from frontend for simplified update detection
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VersionTracking {
+    /// Pre-computed sort key from index for direct integer comparison
+    pub version_sort_key: Option<i64>,
+    /// Commit SHA for branch-based version tracking
+    pub commit_sha: Option<String>,
+}
+
 /// Helper to get the ESO addon path, checking database for custom path first
 fn get_addon_path_from_state(state: &State<'_, AppState>) -> Result<PathBuf, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
@@ -89,6 +99,8 @@ pub async fn get_installed_addons(
                         SourceType::Local,
                         None,
                         &scanned_addon.path,
+                        None, // No version_sort_key for local addons
+                        None, // No commit_sha for local addons
                     ) {
                         db_addons.push(addon);
                     }
@@ -114,6 +126,7 @@ pub async fn install_addon(
     source_type: Option<String>,
     source_repo: Option<String>,
     install_info: Option<InstallInfo>,
+    version_tracking: Option<VersionTracking>,
     state: State<'_, AppState>,
     window: Window,
 ) -> Result<InstalledAddon, String> {
@@ -182,6 +195,11 @@ pub async fn install_addon(
         .and_then(|s| s.parse().ok())
         .unwrap_or(SourceType::Index);
 
+    // Extract version tracking info
+    let (version_sort_key, commit_sha) = version_tracking
+        .map(|vt| (vt.version_sort_key, vt.commit_sha))
+        .unwrap_or((None, None));
+
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let addon = database::insert_installed(
         &conn,
@@ -191,6 +209,8 @@ pub async fn install_addon(
         source,
         source_repo.as_deref(),
         manifest_path.to_string_lossy().as_ref(),
+        version_sort_key,
+        commit_sha.as_deref(),
     )
     .map_err(|e| e.to_string())?;
 

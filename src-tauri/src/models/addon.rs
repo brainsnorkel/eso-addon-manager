@@ -14,6 +14,10 @@ pub struct InstalledAddon {
     pub updated_at: String,
     pub auto_update: bool,
     pub manifest_path: String,
+    /// Pre-computed sort key from index for version comparison (index addons only)
+    pub version_sort_key: Option<i64>,
+    /// Commit SHA for branch-based version tracking
+    pub commit_sha: Option<String>,
 }
 
 /// Source type for an installed addon

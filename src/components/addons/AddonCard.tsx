@@ -21,10 +21,14 @@ function findInstalledAddon(addon: IndexAddon, installed: InstalledAddon[]): Ins
   const slugLower = addon.slug.toLowerCase();
   const targetFolder = addon.install.target_folder.toLowerCase();
   const nameLower = addon.name.toLowerCase();
+  // Strip version suffixes for matching (e.g., "libaddonmenu-2.0" -> "libaddonmenu")
+  const slugBase = slugLower.replace(/-[\d.]+$/, '');
+  const targetBase = targetFolder.replace(/-[\d.]+$/, '');
 
   return installed.find((i) => {
     const installedSlug = i.slug.toLowerCase();
     const installedName = i.name.toLowerCase();
+    const installedBase = installedSlug.replace(/-[\d.]+$/, '');
 
     // Exact slug match
     if (installedSlug === slugLower) return true;
@@ -32,8 +36,15 @@ function findInstalledAddon(addon: IndexAddon, installed: InstalledAddon[]): Ins
     // Target folder match (for locally scanned addons)
     if (installedSlug === targetFolder) return true;
 
+    // Base name match (without version suffix)
+    if (installedBase === slugBase || installedBase === targetBase) return true;
+
     // Name match (fallback)
     if (installedName === nameLower) return true;
+
+    // Partial match - installed slug contains target or vice versa
+    if (installedSlug.includes(slugLower) || slugLower.includes(installedSlug)) return true;
+    if (installedSlug.includes(targetFolder) || targetFolder.includes(installedSlug)) return true;
 
     return false;
   });
@@ -41,6 +52,16 @@ function findInstalledAddon(addon: IndexAddon, installed: InstalledAddon[]): Ins
 
 export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
   const { installed, downloads, installAddon, uninstallAddon } = useAddonStore();
+
+  // Debug: log first addon's matching attempt
+  if (addon.slug === 'libaddonmenu' || installed.length > 0 && addon.slug === 'libaddonmenu') {
+    console.log('AddonCard debug:', {
+      indexSlug: addon.slug,
+      targetFolder: addon.install.target_folder,
+      installedCount: installed.length,
+      installedSlugs: installed.map(i => i.slug).slice(0, 5),
+    });
+  }
 
   const installedAddon = findInstalledAddon(addon, installed);
   const isInstalled = !!installedAddon;

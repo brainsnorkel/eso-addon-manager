@@ -23,6 +23,18 @@ pub fn init_database() -> Result<Connection> {
 /// Run database migrations
 fn run_migrations(conn: &Connection) -> Result<()> {
     conn.execute_batch(include_str!("../../migrations/001_initial.sql"))?;
+
+    // Run migration 002 - add version tracking columns
+    // Use separate statements to handle "column already exists" gracefully
+    let _ = conn.execute(
+        "ALTER TABLE installed_addons ADD COLUMN version_sort_key INTEGER",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE installed_addons ADD COLUMN commit_sha TEXT",
+        [],
+    );
+
     Ok(())
 }
 
@@ -34,7 +46,8 @@ fn run_migrations(conn: &Connection) -> Result<()> {
 pub fn get_all_installed(conn: &Connection) -> Result<Vec<InstalledAddon>> {
     let mut stmt = conn.prepare(
         "SELECT id, slug, name, installed_version, source_type, source_repo,
-                installed_at, updated_at, auto_update, manifest_path
+                installed_at, updated_at, auto_update, manifest_path,
+                version_sort_key, commit_sha
          FROM installed_addons
          ORDER BY name ASC",
     )?;
@@ -55,6 +68,8 @@ pub fn get_all_installed(conn: &Connection) -> Result<Vec<InstalledAddon>> {
                 updated_at: row.get(7)?,
                 auto_update: row.get(8)?,
                 manifest_path: row.get(9)?,
+                version_sort_key: row.get(10)?,
+                commit_sha: row.get(11)?,
             })
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -66,7 +81,8 @@ pub fn get_all_installed(conn: &Connection) -> Result<Vec<InstalledAddon>> {
 pub fn get_installed_by_slug(conn: &Connection, slug: &str) -> Result<Option<InstalledAddon>> {
     let mut stmt = conn.prepare(
         "SELECT id, slug, name, installed_version, source_type, source_repo,
-                installed_at, updated_at, auto_update, manifest_path
+                installed_at, updated_at, auto_update, manifest_path,
+                version_sort_key, commit_sha
          FROM installed_addons
          WHERE slug = ?1",
     )?;
@@ -87,6 +103,8 @@ pub fn get_installed_by_slug(conn: &Connection, slug: &str) -> Result<Option<Ins
                 updated_at: row.get(7)?,
                 auto_update: row.get(8)?,
                 manifest_path: row.get(9)?,
+                version_sort_key: row.get(10)?,
+                commit_sha: row.get(11)?,
             })
         })
         .optional()?;
@@ -103,15 +121,19 @@ pub fn insert_installed(
     source_type: SourceType,
     source_repo: Option<&str>,
     manifest_path: &str,
+    version_sort_key: Option<i64>,
+    commit_sha: Option<&str>,
 ) -> Result<InstalledAddon> {
     let now = Utc::now().to_rfc3339();
 
     conn.execute(
-        "INSERT INTO installed_addons (slug, name, installed_version, source_type, source_repo, installed_at, updated_at, manifest_path)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+        "INSERT INTO installed_addons (slug, name, installed_version, source_type, source_repo, installed_at, updated_at, manifest_path, version_sort_key, commit_sha)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
          ON CONFLICT(slug) DO UPDATE SET
              installed_version = excluded.installed_version,
-             updated_at = excluded.updated_at",
+             updated_at = excluded.updated_at,
+             version_sort_key = excluded.version_sort_key,
+             commit_sha = excluded.commit_sha",
         params![
             slug,
             name,
@@ -120,7 +142,9 @@ pub fn insert_installed(
             source_repo,
             &now,
             &now,
-            manifest_path
+            manifest_path,
+            version_sort_key,
+            commit_sha
         ],
     )?;
 

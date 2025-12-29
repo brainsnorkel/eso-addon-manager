@@ -33,8 +33,10 @@ export const useAddonStore = create<AddonStore>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const installed = await api.getInstalledAddons();
+      console.log('fetchInstalled result:', installed.length, 'addons', installed.map(a => a.slug).slice(0, 10));
       set({ installed, loading: false });
     } catch (e) {
+      console.error('fetchInstalled error:', e);
       set({ error: String(e), loading: false });
     }
   },

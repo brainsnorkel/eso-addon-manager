@@ -33,6 +33,8 @@ pub struct IndexAddon {
     /// Installation instructions
     pub install: InstallInfo,
     pub latest_release: Option<AddonRelease>,
+    /// Version metadata for comparison (from index)
+    pub version_info: Option<VersionInfo>,
 }
 
 /// Source repository information
@@ -79,6 +81,19 @@ pub struct AddonRelease {
     pub published_at: Option<String>,
     pub file_size: Option<u64>,
     pub checksum: Option<String>,
+    /// Commit SHA for the release
+    pub commit_sha: Option<String>,
+}
+
+/// Version metadata for comparison (from index)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VersionInfo {
+    /// Pre-computed sort key for direct integer comparison
+    pub version_sort_key: Option<i64>,
+    /// Whether this is a pre-release version
+    pub is_prerelease: Option<bool>,
+    /// Release channel: "stable", "prerelease", or "branch"
+    pub release_channel: Option<String>,
 }
 
 /// Cached index data stored in database
