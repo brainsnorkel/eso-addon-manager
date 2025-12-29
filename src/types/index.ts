@@ -14,7 +14,6 @@ export interface IndexAddon {
   description: string;
   authors: string[];
   license?: string;
-  category: string;
   tags: string[];
   url?: string; // Link to addon docs/homepage
   source: AddonSource;
@@ -71,6 +70,5 @@ export interface VersionInfo {
 /** Index statistics */
 export interface IndexStats {
   total_addons: number;
-  categories: [string, number][];
   fetched_at: string;
 }

@@ -118,21 +118,13 @@ pub async fn get_index_stats(state: State<'_, AppState>) -> Result<IndexStats, S
             let index: AddonIndex =
                 serde_json::from_str(&data).map_err(|e| format!("Failed to parse index: {}", e))?;
 
-            // Count categories
-            let mut categories = std::collections::HashMap::new();
-            for addon in &index.addons {
-                *categories.entry(addon.category.clone()).or_insert(0) += 1;
-            }
-
             Ok(IndexStats {
                 total_addons: index.addons.len(),
-                categories: categories.into_iter().collect(),
                 fetched_at,
             })
         }
         None => Ok(IndexStats {
             total_addons: 0,
-            categories: Vec::new(),
             fetched_at: String::new(),
         }),
     }
@@ -142,6 +134,5 @@ pub async fn get_index_stats(state: State<'_, AppState>) -> Result<IndexStats, S
 #[serde(rename_all = "camelCase")]
 pub struct IndexStats {
     pub total_addons: usize,
-    pub categories: Vec<(String, usize)>,
     pub fetched_at: String,
 }

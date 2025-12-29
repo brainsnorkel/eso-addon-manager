@@ -24,7 +24,6 @@ pub struct IndexAddon {
     pub description: String,
     pub authors: Vec<String>,
     pub license: Option<String>,
-    pub category: String,
     pub tags: Vec<String>,
     /// Link to addon docs/homepage
     pub url: Option<String>,

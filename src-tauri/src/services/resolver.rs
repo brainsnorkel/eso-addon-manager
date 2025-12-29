@@ -276,7 +276,6 @@ mod tests {
             description: "Test addon".to_string(),
             authors: vec!["Author".to_string()],
             license: None,
-            category: "Test".to_string(),
             tags: vec![],
             url: None,
             source: AddonSource {

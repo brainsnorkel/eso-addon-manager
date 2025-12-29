@@ -11,20 +11,17 @@ interface IndexStore {
 
   // Filters
   searchQuery: string;
-  selectedCategory: string | null;
   selectedTags: string[];
 
   // Actions
   fetchIndex: (force?: boolean) => Promise<void>;
   fetchStats: () => Promise<void>;
   setSearchQuery: (query: string) => void;
-  setCategory: (category: string | null) => void;
   toggleTag: (tag: string) => void;
   clearFilters: () => void;
 
   // Computed
   filteredAddons: () => IndexAddon[];
-  categories: () => string[];
   allTags: () => string[];
 }
 
@@ -35,7 +32,6 @@ export const useIndexStore = create<IndexStore>((set, get) => ({
   loading: false,
   error: null,
   searchQuery: '',
-  selectedCategory: null,
   selectedTags: [],
 
   fetchIndex: async (force = false) => {
@@ -62,7 +58,6 @@ export const useIndexStore = create<IndexStore>((set, get) => ({
   },
 
   setSearchQuery: (query) => set({ searchQuery: query }),
-  setCategory: (category) => set({ selectedCategory: category }),
   toggleTag: (tag) =>
     set((state) => ({
       selectedTags: state.selectedTags.includes(tag)
@@ -70,10 +65,10 @@ export const useIndexStore = create<IndexStore>((set, get) => ({
         : [...state.selectedTags, tag],
     })),
   clearFilters: () =>
-    set({ searchQuery: '', selectedCategory: null, selectedTags: [] }),
+    set({ searchQuery: '', selectedTags: [] }),
 
   filteredAddons: () => {
-    const { addons, searchQuery, selectedCategory, selectedTags } = get();
+    const { addons, searchQuery, selectedTags } = get();
 
     return addons.filter((addon) => {
       // Search filter
@@ -87,11 +82,6 @@ export const useIndexStore = create<IndexStore>((set, get) => ({
         if (!matches) return false;
       }
 
-      // Category filter
-      if (selectedCategory && addon.category !== selectedCategory) {
-        return false;
-      }
-
       // Tags filter (addon must have ALL selected tags)
       if (selectedTags.length > 0) {
         if (!selectedTags.every((t) => addon.tags.includes(t))) {
@@ -101,11 +91,6 @@ export const useIndexStore = create<IndexStore>((set, get) => ({
 
       return true;
     });
-  },
-
-  categories: () => {
-    const cats = new Set(get().addons.map((a) => a.category));
-    return Array.from(cats).sort();
   },
 
   allTags: () => {

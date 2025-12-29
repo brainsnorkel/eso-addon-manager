@@ -182,9 +182,6 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
             </button>
           )}
         </div>
-        <span className="px-2 py-1 text-xs rounded-full bg-gray-700 text-gray-300 whitespace-nowrap">
-          {addon.category}
-        </span>
       </div>
 
       <p className="mt-3 text-sm text-gray-400 line-clamp-2">
