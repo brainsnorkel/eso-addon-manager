@@ -245,34 +245,97 @@ pub async fn scan_local_addons(
 /// Check for updates for all installed addons
 #[tauri::command]
 pub async fn check_updates(state: State<'_, AppState>) -> Result<Vec<UpdateInfo>, String> {
-    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    // Collect all data from database in a separate scope to ensure lock is released
+    let (installed, index, custom_repos) = {
+        let conn = state.db.lock().map_err(|e| e.to_string())?;
 
-    let installed = database::get_all_installed(&conn).map_err(|e| e.to_string())?;
+        let installed = database::get_all_installed(&conn).map_err(|e| e.to_string())?;
 
-    // Get cached index
-    let index_data = database::get_cached_index(&conn)
-        .map_err(|e| e.to_string())?
-        .map(|(data, _, _)| data);
+        // Get cached index for Index source addons
+        let index_data = database::get_cached_index(&conn)
+            .map_err(|e| e.to_string())?
+            .map(|(data, _, _)| data);
 
-    let index: Option<crate::models::AddonIndex> =
-        index_data.and_then(|data| serde_json::from_str(&data).ok());
+        let index: Option<crate::models::AddonIndex> =
+            index_data.and_then(|data| serde_json::from_str(&data).ok());
+
+        // Get custom repos for GitHub source addons
+        let custom_repos = database::get_all_custom_repos(&conn).unwrap_or_default();
+
+        (installed, index, custom_repos)
+    }; // conn is dropped here
 
     let mut updates = Vec::new();
 
-    if let Some(index) = index {
-        for addon in installed {
-            if let Some(index_entry) = index.addons.iter().find(|a| a.slug == addon.slug) {
-                if let Some(release) = &index_entry.latest_release {
-                    if release.version != addon.installed_version {
-                        updates.push(UpdateInfo {
-                            slug: addon.slug,
-                            name: addon.name,
-                            current_version: addon.installed_version,
-                            new_version: release.version.clone(),
-                            download_url: release.download_url.clone(),
-                        });
+    for addon in installed {
+        match addon.source_type {
+            SourceType::Index => {
+                // Check against the index
+                if let Some(ref index) = index {
+                    if let Some(index_entry) = index.addons.iter().find(|a| a.slug == addon.slug) {
+                        // First check if there's a release with a newer version
+                        if let Some(release) = &index_entry.latest_release {
+                            if is_update_available(&addon.installed_version, &release.version) {
+                                updates.push(UpdateInfo {
+                                    slug: addon.slug.clone(),
+                                    name: addon.name.clone(),
+                                    current_version: addon.installed_version.clone(),
+                                    new_version: release.version.clone(),
+                                    download_url: release.download_url.clone(),
+                                    source_type: SourceType::Index,
+                                    source_repo: Some(index_entry.source.repo.clone()),
+                                    install_info: Some(index_entry.install.clone()),
+                                });
+                            }
+                        } else {
+                            // No release - check if installed from branch and branch has updates
+                            // For branch installs, we can't easily detect updates without commit tracking
+                            // Skip for now - could be enhanced with commit SHA tracking later
+                        }
                     }
                 }
+            }
+            SourceType::Github => {
+                // Check GitHub releases for custom repos
+                if let Some(repo) = &addon.source_repo {
+                    // Find the custom repo config
+                    let custom_repo = custom_repos.iter().find(|r| &r.repo == repo);
+
+                    // Only check release-based repos (branch-based would need commit tracking)
+                    if custom_repo
+                        .map(|r| r.release_type == crate::models::ReleaseType::Release)
+                        .unwrap_or(true)
+                    {
+                        // Fetch latest release from GitHub
+                        if let Ok(Some(release_info)) =
+                            downloader::get_github_release_info(repo).await
+                        {
+                            // Clean up tag name (remove 'v' prefix if present) for comparison
+                            let new_version = release_info
+                                .tag_name
+                                .strip_prefix('v')
+                                .unwrap_or(&release_info.tag_name)
+                                .to_string();
+
+                            if is_update_available(&addon.installed_version, &new_version) {
+                                updates.push(UpdateInfo {
+                                    slug: addon.slug.clone(),
+                                    name: addon.name.clone(),
+                                    current_version: addon.installed_version.clone(),
+                                    new_version: new_version.clone(),
+                                    download_url: release_info.download_url,
+                                    source_type: SourceType::Github,
+                                    source_repo: Some(repo.clone()),
+                                    install_info: None, // GitHub repos don't have index install info
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            SourceType::Local => {
+                // Local addons have no update source - skip
+                // Could potentially be enhanced to check if slug matches an index entry
             }
         }
     }

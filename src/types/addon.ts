@@ -32,6 +32,9 @@ export interface UpdateInfo {
   currentVersion: string;
   newVersion: string;
   downloadUrl: string;
+  sourceType: 'index' | 'github' | 'local';
+  sourceRepo?: string;
+  installInfo?: import('./index').InstallInfo;
 }
 
 /** Download progress event */

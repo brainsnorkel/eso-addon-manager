@@ -6,7 +6,6 @@
 /// - Simple versions: "1.2", "1"
 /// - Date versions: "2024.01.15"
 /// - Branch versions: "main-latest" (treated as always outdated)
-
 use std::cmp::Ordering;
 
 /// Parsed version for comparison
@@ -88,11 +87,14 @@ impl Ord for Version {
     fn cmp(&self, other: &Self) -> Ordering {
         // Branch versions are always considered "older" than real versions
         // This means any real version will trigger an update for branch-installed addons
-        match (self.is_branch, other.is_branch) {
-            (true, true) => Ordering::Equal,
-            (true, false) => Ordering::Less,
-            (false, true) => Ordering::Greater,
-            (false, false) => {}
+        if self.is_branch && other.is_branch {
+            return Ordering::Equal;
+        }
+        if self.is_branch {
+            return Ordering::Less;
+        }
+        if other.is_branch {
+            return Ordering::Greater;
         }
 
         // Compare numeric components
