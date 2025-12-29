@@ -66,7 +66,9 @@ pub fn find_addon_root(extracted_dir: &Path) -> Option<std::path::PathBuf> {
                 if let Ok(sub_entries) = fs::read_dir(&path) {
                     for sub_entry in sub_entries.flatten() {
                         let sub_path = sub_entry.path();
-                        if sub_path.is_dir() && !is_example_dir(&sub_path) && has_manifest(&sub_path)
+                        if sub_path.is_dir()
+                            && !is_example_dir(&sub_path)
+                            && has_manifest(&sub_path)
                         {
                             return Some(sub_path);
                         }
