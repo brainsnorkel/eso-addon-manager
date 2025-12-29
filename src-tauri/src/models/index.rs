@@ -82,17 +82,34 @@ pub struct AddonRelease {
     pub checksum: Option<String>,
     /// Commit SHA for the release
     pub commit_sha: Option<String>,
+    /// Commit date (for branch-based releases)
+    pub commit_date: Option<String>,
+    /// Commit message (for branch-based releases)
+    pub commit_message: Option<String>,
+}
+
+/// Normalized semantic version components
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VersionNormalized {
+    pub major: Option<i32>,
+    pub minor: Option<i32>,
+    pub patch: Option<i32>,
+    pub prerelease: Option<String>,
 }
 
 /// Version metadata for comparison (from index)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionInfo {
+    /// Parsed semantic version components (null for branch-based releases)
+    pub version_normalized: Option<VersionNormalized>,
     /// Pre-computed sort key for direct integer comparison
     pub version_sort_key: Option<i64>,
     /// Whether this is a pre-release version
     pub is_prerelease: Option<bool>,
     /// Release channel: "stable", "prerelease", or "branch"
     pub release_channel: Option<String>,
+    /// Commit message (for branch-based releases)
+    pub commit_message: Option<String>,
 }
 
 /// Cached index data stored in database

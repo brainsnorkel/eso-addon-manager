@@ -55,16 +55,32 @@ export interface AddonRelease {
   file_size?: number;
   checksum?: string;
   commit_sha?: string;
+  /** Commit date (for branch-based releases) */
+  commit_date?: string;
+  /** Commit message (for branch-based releases) */
+  commit_message?: string;
+}
+
+/** Normalized semantic version components */
+export interface VersionNormalized {
+  major?: number;
+  minor?: number;
+  patch?: number;
+  prerelease?: string;
 }
 
 /** Version metadata for comparison (from index) */
 export interface VersionInfo {
+  /** Parsed semantic version components (null for branch-based releases) */
+  version_normalized?: VersionNormalized;
   /** Pre-computed sort key for direct integer comparison */
   version_sort_key?: number;
   /** Whether this is a pre-release version */
   is_prerelease?: boolean;
   /** Release channel: "stable", "prerelease", or "branch" */
   release_channel?: 'stable' | 'prerelease' | 'branch';
+  /** Commit message (for branch-based releases) */
+  commit_message?: string;
 }
 
 /** Index statistics */
