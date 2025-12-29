@@ -28,6 +28,7 @@ pub fn run() {
             commands::check_updates,
             commands::get_addon_directory,
             commands::set_addon_directory,
+            commands::resolve_addon_dependencies,
             // GitHub commands
             commands::add_custom_repo,
             commands::get_custom_repos,

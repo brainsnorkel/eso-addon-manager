@@ -1,9 +1,10 @@
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Button } from '../common/Button';
+import { DependencyDialog } from './DependencyDialog';
 import { useAddonStore } from '../../stores/addonStore';
 import type { IndexAddon } from '../../types/index';
-import type { InstalledAddon } from '../../types/addon';
+import type { InstalledAddon, DependencyResult, ResolvedDependency } from '../../types/addon';
 
 interface AddonCardProps {
   addon: IndexAddon;
@@ -51,7 +52,13 @@ function findInstalledAddon(addon: IndexAddon, installed: InstalledAddon[]): Ins
 }
 
 export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
-  const { installed, downloads, installAddon, uninstallAddon } = useAddonStore();
+  const { installed, downloads, installAddon, uninstallAddon, resolveAddonDependencies } = useAddonStore();
+
+  // State for dependency dialog
+  const [showDepDialog, setShowDepDialog] = useState(false);
+  const [depResult, setDepResult] = useState<DependencyResult | null>(null);
+  const [installingWithDeps, setInstallingWithDeps] = useState(false);
+  const [resolvingDeps, setResolvingDeps] = useState(false);
 
   // Debug: log first addon's matching attempt
   if (addon.slug === 'libaddonmenu' || installed.length > 0 && addon.slug === 'libaddonmenu') {
@@ -77,7 +84,35 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
     addon.latest_release &&
     installedAddon.installedVersion !== addon.latest_release.version;
 
+  // Check for dependencies from the addon's compatibility info
+  const hasPotentialDependencies = addon.compatibility.required_dependencies.length > 0;
+
   const handleInstall = async () => {
+    if (!downloadUrl) return;
+
+    // If addon has dependencies, resolve them first
+    if (hasPotentialDependencies) {
+      setResolvingDeps(true);
+      try {
+        const result = await resolveAddonDependencies(addon.slug);
+        if (result && (result.resolved.length > 0 || result.unresolved.length > 0)) {
+          // Show the dependency dialog
+          setDepResult(result);
+          setShowDepDialog(true);
+          return;
+        }
+      } catch (e) {
+        console.error('Failed to resolve dependencies:', e);
+      } finally {
+        setResolvingDeps(false);
+      }
+    }
+
+    // No dependencies or all already installed - proceed with install
+    await doInstall();
+  };
+
+  const doInstall = async () => {
     if (!downloadUrl) return;
     // Pass version tracking info for simplified update detection
     const versionTracking = {
@@ -85,6 +120,35 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
       commitSha: addon.latest_release?.commit_sha,
     };
     await installAddon(addon.slug, addon.name, version, downloadUrl, addon.install, versionTracking);
+  };
+
+  const handleDepConfirm = async (selectedDeps: ResolvedDependency[]) => {
+    setInstallingWithDeps(true);
+    try {
+      // Install dependencies first (in order - deepest first)
+      for (const dep of selectedDeps) {
+        await installAddon(
+          dep.slug,
+          dep.name,
+          dep.version,
+          dep.downloadUrl,
+          dep.installInfo,
+          undefined
+        );
+      }
+
+      // Then install the main addon
+      await doInstall();
+    } finally {
+      setInstallingWithDeps(false);
+      setShowDepDialog(false);
+      setDepResult(null);
+    }
+  };
+
+  const handleDepCancel = () => {
+    setShowDepDialog(false);
+    setDepResult(null);
   };
 
   const handleUninstall = async () => {
@@ -180,7 +244,7 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
           ) : isInstalled ? (
             <>
               {hasUpdate && (
-                <Button size="sm" onClick={handleInstall}>
+                <Button size="sm" onClick={handleInstall} loading={resolvingDeps}>
                   Update
                 </Button>
               )}
@@ -193,12 +257,24 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
               size="sm"
               onClick={handleInstall}
               disabled={!canInstall}
+              loading={resolvingDeps}
             >
               Install
             </Button>
           )}
         </div>
       </div>
+
+      {/* Dependency Dialog */}
+      {showDepDialog && depResult && (
+        <DependencyDialog
+          addonName={addon.name}
+          dependencies={depResult}
+          onConfirm={handleDepConfirm}
+          onCancel={handleDepCancel}
+          installing={installingWithDeps}
+        />
+      )}
     </div>
   );
 };

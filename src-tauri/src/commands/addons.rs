@@ -485,3 +485,34 @@ pub async fn set_addon_directory(path: String, state: State<'_, AppState>) -> Re
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     database::set_setting(&conn, "eso_addon_path", &path).map_err(|e| e.to_string())
 }
+
+/// Resolve dependencies for an addon before installation
+///
+/// Returns information about which dependencies:
+/// - Can be installed from the index
+/// - Are already installed
+/// - Cannot be found in the index (external dependencies)
+#[tauri::command]
+pub async fn resolve_addon_dependencies(
+    slug: String,
+    state: State<'_, AppState>,
+) -> Result<crate::services::resolver::DependencyResult, String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+
+    // Get cached index
+    let index_data = database::get_cached_index(&conn)
+        .map_err(|e| e.to_string())?
+        .map(|(data, _, _)| data)
+        .ok_or_else(|| "No cached index available. Please refresh the index.".to_string())?;
+
+    let index: crate::models::AddonIndex =
+        serde_json::from_str(&index_data).map_err(|e| format!("Failed to parse index: {}", e))?;
+
+    // Get installed addons
+    let installed = database::get_all_installed(&conn).map_err(|e| e.to_string())?;
+
+    // Resolve dependencies
+    Ok(crate::services::resolver::resolve_dependencies(
+        &slug, &index, &installed,
+    ))
+}

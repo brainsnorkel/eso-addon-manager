@@ -64,3 +64,29 @@ export interface ScannedAddon {
   manifest: AddonManifest;
   hasSavedVariables: boolean;
 }
+
+/** A resolved dependency ready for installation */
+export interface ResolvedDependency {
+  /** The addon slug */
+  slug: string;
+  /** Display name */
+  name: string;
+  /** Version to install */
+  version: string;
+  /** Download URL */
+  downloadUrl: string;
+  /** Installation info from the index */
+  installInfo: import('./index').InstallInfo;
+  /** Depth in the dependency tree (0 = direct dependency) */
+  depth: number;
+}
+
+/** Result of dependency resolution */
+export interface DependencyResult {
+  /** Dependencies that can be installed from the index */
+  resolved: ResolvedDependency[];
+  /** Dependencies that are already installed (by slug) */
+  alreadyInstalled: string[];
+  /** Dependencies not found in the index (external/unknown) */
+  unresolved: string[];
+}

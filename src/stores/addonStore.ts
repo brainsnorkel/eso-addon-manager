@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { listen } from '@tauri-apps/api/event';
 import * as api from '../services/tauri';
-import type { InstalledAddon, UpdateInfo, DownloadProgress, ScannedAddon, VersionTracking } from '../types/addon';
+import type { InstalledAddon, UpdateInfo, DownloadProgress, ScannedAddon, VersionTracking, DependencyResult } from '../types/addon';
 import type { InstallInfo } from '../types/index';
 
 interface AddonStore {
@@ -19,6 +19,7 @@ interface AddonStore {
   checkUpdates: () => Promise<void>;
   scanLocalAddons: () => Promise<void>;
   clearError: () => void;
+  resolveAddonDependencies: (slug: string) => Promise<DependencyResult | null>;
 }
 
 export const useAddonStore = create<AddonStore>((set, get) => ({
@@ -100,4 +101,14 @@ export const useAddonStore = create<AddonStore>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  resolveAddonDependencies: async (slug) => {
+    try {
+      const result = await api.resolveAddonDependencies(slug);
+      return result;
+    } catch (e) {
+      console.error('Failed to resolve dependencies:', e);
+      return null;
+    }
+  },
 }));

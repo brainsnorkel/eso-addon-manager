@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { InstalledAddon, UpdateInfo, ScannedAddon, VersionTracking } from '../types/addon';
+import type { InstalledAddon, UpdateInfo, ScannedAddon, VersionTracking, DependencyResult } from '../types/addon';
 import type { AddonIndex, IndexStats, InstallInfo } from '../types/index';
 import type { CustomRepo, GitHubRepoInfo } from '../types/github';
 import type { AppSettings } from '../types/settings';
@@ -52,6 +52,10 @@ export async function getAddonDirectory(): Promise<string | null> {
 
 export async function setAddonDirectory(path: string): Promise<void> {
   return invoke('set_addon_directory', { path });
+}
+
+export async function resolveAddonDependencies(slug: string): Promise<DependencyResult> {
+  return invoke('resolve_addon_dependencies', { slug });
 }
 
 // ============================================================================
