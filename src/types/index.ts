@@ -21,6 +21,7 @@ export interface IndexAddon {
   compatibility: AddonCompatibility;
   install: InstallInfo;
   latest_release?: AddonRelease;
+  version_info?: VersionInfo;
 }
 
 /** Source repository information */
@@ -54,6 +55,17 @@ export interface AddonRelease {
   published_at?: string;
   file_size?: number;
   checksum?: string;
+  commit_sha?: string;
+}
+
+/** Version metadata for comparison (from index) */
+export interface VersionInfo {
+  /** Pre-computed sort key for direct integer comparison */
+  version_sort_key?: number;
+  /** Whether this is a pre-release version */
+  is_prerelease?: boolean;
+  /** Release channel: "stable", "prerelease", or "branch" */
+  release_channel?: 'stable' | 'prerelease' | 'branch';
 }
 
 /** Index statistics */

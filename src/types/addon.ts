@@ -10,6 +10,18 @@ export interface InstalledAddon {
   updatedAt: string;
   autoUpdate: boolean;
   manifestPath: string;
+  /** Pre-computed sort key from index for version comparison (index addons only) */
+  versionSortKey?: number;
+  /** Commit SHA for branch-based version tracking */
+  commitSha?: string;
+}
+
+/** Version tracking info for simplified update detection */
+export interface VersionTracking {
+  /** Pre-computed sort key from index for direct integer comparison */
+  versionSortKey?: number;
+  /** Commit SHA for branch-based version tracking */
+  commitSha?: string;
 }
 
 /** Parsed addon manifest from .txt file */

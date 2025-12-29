@@ -79,7 +79,12 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
 
   const handleInstall = async () => {
     if (!downloadUrl) return;
-    await installAddon(addon.slug, addon.name, version, downloadUrl, addon.install);
+    // Pass version tracking info for simplified update detection
+    const versionTracking = {
+      versionSortKey: addon.version_info?.version_sort_key,
+      commitSha: addon.latest_release?.commit_sha,
+    };
+    await installAddon(addon.slug, addon.name, version, downloadUrl, addon.install, versionTracking);
   };
 
   const handleUninstall = async () => {
@@ -151,7 +156,16 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
         </span>
 
         <div className="flex gap-2">
-          {downloadState && downloadState.status !== 'complete' ? (
+          {downloadState && downloadState.status === 'failed' ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-red-400" title={downloadState.error || 'Installation failed'}>
+                Failed
+              </span>
+              <Button size="sm" onClick={handleInstall}>
+                Retry
+              </Button>
+            </div>
+          ) : downloadState && downloadState.status !== 'complete' ? (
             <div className="flex items-center gap-2">
               <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
                 <div

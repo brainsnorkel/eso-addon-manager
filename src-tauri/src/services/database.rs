@@ -113,6 +113,7 @@ pub fn get_installed_by_slug(conn: &Connection, slug: &str) -> Result<Option<Ins
 }
 
 /// Insert a new installed addon
+#[allow(clippy::too_many_arguments)]
 pub fn insert_installed(
     conn: &Connection,
     slug: &str,

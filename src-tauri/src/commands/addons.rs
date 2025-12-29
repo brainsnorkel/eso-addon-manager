@@ -115,6 +115,19 @@ pub async fn get_installed_addons(
     Ok(db_addons)
 }
 
+/// Helper to emit a failed status with error message
+fn emit_install_error(window: &Window, slug: &str, error: &str) {
+    let _ = window.emit(
+        "download-progress",
+        DownloadProgress {
+            slug: slug.to_string(),
+            status: DownloadStatus::Failed,
+            progress: 0.0,
+            error: Some(error.to_string()),
+        },
+    );
+}
+
 /// Install an addon from a download URL with optional install info from the index
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
@@ -142,14 +155,20 @@ pub async fn install_addon(
     );
 
     // Create temp file for download
-    let temp_file =
-        NamedTempFile::new().map_err(|e| format!("Failed to create temp file: {}", e))?;
+    let temp_file = match NamedTempFile::new() {
+        Ok(f) => f,
+        Err(e) => {
+            let error = format!("Failed to create temp file: {}", e);
+            emit_install_error(&window, &slug, &error);
+            return Err(error);
+        }
+    };
     let temp_path = temp_file.path().to_path_buf();
 
     // Download the addon
     let window_clone = window.clone();
     let slug_clone = slug.clone();
-    downloader::download_file(&download_url, &temp_path, move |progress| {
+    if let Err(e) = downloader::download_file(&download_url, &temp_path, move |progress| {
         let _ = window_clone.emit(
             "download-progress",
             DownloadProgress {
@@ -161,7 +180,11 @@ pub async fn install_addon(
         );
     })
     .await
-    .map_err(|e| format!("Download failed: {}", e))?;
+    {
+        let error = format!("Download failed: {}", e);
+        emit_install_error(&window, &slug, &error);
+        return Err(error);
+    }
 
     // Emit extracting status
     let _ = window.emit(
@@ -175,20 +198,47 @@ pub async fn install_addon(
     );
 
     // Get ESO addon directory (checks custom path from database first)
-    let addon_dir = get_addon_path_from_state(&state)?;
+    let addon_dir = match get_addon_path_from_state(&state) {
+        Ok(dir) => dir,
+        Err(e) => {
+            emit_install_error(&window, &slug, &e);
+            return Err(e);
+        }
+    };
 
     // Install the addon using install_info if provided (index addons), otherwise fallback to auto-detection
     let installed_path = if let Some(ref info) = install_info {
-        installer::install_from_archive_with_info(&temp_path, &addon_dir, info)
-            .map_err(|e| format!("Installation failed: {}", e))?
+        match installer::install_from_archive_with_info(&temp_path, &addon_dir, info) {
+            Ok(path) => path,
+            Err(e) => {
+                let error = format!("Extraction failed: {} (target: {})", e, info.target_folder);
+                emit_install_error(&window, &slug, &error);
+                return Err(error);
+            }
+        }
     } else {
-        installer::install_from_archive(&temp_path, &addon_dir)
-            .map_err(|e| format!("Installation failed: {}", e))?
+        match installer::install_from_archive(&temp_path, &addon_dir) {
+            Ok(path) => path,
+            Err(e) => {
+                let error = format!("Extraction failed: {}", e);
+                emit_install_error(&window, &slug, &error);
+                return Err(error);
+            }
+        }
     };
 
     // Get manifest path
-    let manifest_path = installer::get_manifest_path(&installed_path)
-        .ok_or_else(|| "Could not find addon manifest".to_string())?;
+    let manifest_path = match installer::get_manifest_path(&installed_path) {
+        Some(path) => path,
+        None => {
+            let error = format!(
+                "Could not find addon manifest after extraction. Check that '{}' contains a valid ESO addon.",
+                installed_path.display()
+            );
+            emit_install_error(&window, &slug, &error);
+            return Err(error);
+        }
+    };
 
     // Update database
     let source = source_type
@@ -200,8 +250,16 @@ pub async fn install_addon(
         .map(|vt| (vt.version_sort_key, vt.commit_sha))
         .unwrap_or((None, None));
 
-    let conn = state.db.lock().map_err(|e| e.to_string())?;
-    let addon = database::insert_installed(
+    let conn = match state.db.lock() {
+        Ok(c) => c,
+        Err(e) => {
+            let error = format!("Database lock failed: {}", e);
+            emit_install_error(&window, &slug, &error);
+            return Err(error);
+        }
+    };
+
+    let addon = match database::insert_installed(
         &conn,
         &slug,
         &name,
@@ -211,8 +269,14 @@ pub async fn install_addon(
         manifest_path.to_string_lossy().as_ref(),
         version_sort_key,
         commit_sha.as_deref(),
-    )
-    .map_err(|e| e.to_string())?;
+    ) {
+        Ok(a) => a,
+        Err(e) => {
+            let error = format!("Failed to save addon to database: {}", e);
+            emit_install_error(&window, &slug, &error);
+            return Err(error);
+        }
+    };
 
     // Emit completion
     let _ = window.emit(
@@ -290,12 +354,13 @@ pub async fn check_updates(state: State<'_, AppState>) -> Result<Vec<UpdateInfo>
     for addon in installed {
         match addon.source_type {
             SourceType::Index => {
-                // Check against the index
+                // Check against the index using simplified version comparison
                 if let Some(ref index) = index {
                     if let Some(index_entry) = index.addons.iter().find(|a| a.slug == addon.slug) {
-                        // First check if there's a release with a newer version
-                        if let Some(release) = &index_entry.latest_release {
-                            if is_update_available(&addon.installed_version, &release.version) {
+                        let has_update = check_index_addon_update(&addon, index_entry);
+
+                        if has_update {
+                            if let Some(release) = &index_entry.latest_release {
                                 updates.push(UpdateInfo {
                                     slug: addon.slug.clone(),
                                     name: addon.name.clone(),
@@ -307,10 +372,6 @@ pub async fn check_updates(state: State<'_, AppState>) -> Result<Vec<UpdateInfo>
                                     install_info: Some(index_entry.install.clone()),
                                 });
                             }
-                        } else {
-                            // No release - check if installed from branch and branch has updates
-                            // For branch installs, we can't easily detect updates without commit tracking
-                            // Skip for now - could be enhanced with commit SHA tracking later
                         }
                     }
                 }
@@ -361,6 +422,48 @@ pub async fn check_updates(state: State<'_, AppState>) -> Result<Vec<UpdateInfo>
     }
 
     Ok(updates)
+}
+
+/// Check if an index addon has an update available using simplified comparison
+/// Priority: 1) version_sort_key comparison, 2) commit_sha comparison, 3) version string fallback
+fn check_index_addon_update(
+    addon: &InstalledAddon,
+    index_entry: &crate::models::IndexAddon,
+) -> bool {
+    // Get release channel from index
+    let release_channel = index_entry
+        .version_info
+        .as_ref()
+        .and_then(|vi| vi.release_channel.as_deref());
+
+    // For branch-based addons, compare commit SHAs
+    if release_channel == Some("branch") {
+        if let (Some(installed_sha), Some(release)) =
+            (&addon.commit_sha, &index_entry.latest_release)
+        {
+            if let Some(ref index_sha) = release.commit_sha {
+                return installed_sha != index_sha;
+            }
+        }
+        // No commit SHA to compare - can't determine update
+        return false;
+    }
+
+    // For stable/prerelease addons, prefer sort_key comparison
+    if let (Some(installed_key), Some(version_info)) =
+        (addon.version_sort_key, &index_entry.version_info)
+    {
+        if let Some(index_key) = version_info.version_sort_key {
+            return index_key > installed_key;
+        }
+    }
+
+    // Fallback to version string comparison for older installations without sort_key
+    if let Some(release) = &index_entry.latest_release {
+        return is_update_available(&addon.installed_version, &release.version);
+    }
+
+    false
 }
 
 /// Get the ESO addon directory path

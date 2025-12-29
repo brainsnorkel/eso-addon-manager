@@ -279,6 +279,8 @@ pub async fn install_from_github(
         SourceType::Github,
         Some(&repo),
         manifest_path.to_string_lossy().as_ref(),
+        None, // No version_sort_key for custom GitHub repos
+        None, // No commit_sha tracking for custom GitHub repos yet
     )
     .map_err(|e| e.to_string())?;
 

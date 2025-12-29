@@ -5,7 +5,7 @@ use chrono::Utc;
 use tauri::State;
 
 /// Default index URL (can be overridden in settings)
-const DEFAULT_INDEX_URL: &str = "https://xop.co/eso-addon-index/";
+const DEFAULT_INDEX_URL: &str = "https://xop.co/eso-addon-index/index.json";
 
 /// Fetch the addon index (from cache or remote)
 #[tauri::command]

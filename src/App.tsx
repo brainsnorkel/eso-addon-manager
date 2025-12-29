@@ -59,6 +59,7 @@ function App() {
 
 function BrowseView() {
   const { loading, fetchIndex, filteredAddons, addons } = useIndexStore();
+  const { error, clearError } = useAddonStore();
   const filtered = filteredAddons();
 
   return (
@@ -74,6 +75,23 @@ function BrowseView() {
       />
       <div className="p-6 flex-1 overflow-auto">
         <div className="max-w-4xl mx-auto">
+          {error && (
+            <div className="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-lg">
+              <div className="flex justify-between items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <span className="text-red-200 text-sm font-medium">Installation Error</span>
+                  <p className="text-red-300 text-sm mt-1 break-words">{error}</p>
+                </div>
+                <button
+                  onClick={clearError}
+                  className="text-red-400 hover:text-red-300 text-xl leading-none flex-shrink-0"
+                  title="Dismiss"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
           <SearchBar />
           <div className="mt-6 grid gap-4">
             {loading && filtered.length === 0 ? (
