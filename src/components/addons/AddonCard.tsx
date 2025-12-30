@@ -91,22 +91,28 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
   const dependencyInfos = useMemo((): DependencyInfo[] => {
     if (!hasPotentialDependencies) return [];
 
-    // Build sets for quick lookup (lowercase for case-insensitive matching)
-    const installedSlugs = new Set(installed.map(a => a.slug.toLowerCase()));
-    const indexSlugs = new Set(indexAddons.map(a => a.slug.toLowerCase()));
+    // Normalize slug for matching: lowercase, replace dots with hyphens
+    // This handles "LibAddonMenu-2.0" matching "libaddonmenu-2-0" in the index
+    const normalizeSlug = (s: string) => s.toLowerCase().replace(/\./g, '-');
+
+    // Build sets for quick lookup (normalized for matching)
+    const installedSlugs = new Set(installed.map(a => normalizeSlug(a.slug)));
+    const indexSlugs = new Set(indexAddons.map(a => normalizeSlug(a.slug)));
+
+    // Strip version suffix for base name matching (e.g., "libaddonmenu-2-0" -> "libaddonmenu")
+    const getBaseName = (s: string) => s.replace(/-[\d-]+$/, '');
 
     return addon.compatibility.required_dependencies.map(depSlug => {
-      const depLower = depSlug.toLowerCase();
-      // Also check without version suffix (e.g., "libaddonmenu-2.0" -> "libaddonmenu")
-      const depBase = depLower.replace(/-[\d.]+$/, '');
+      const depNorm = normalizeSlug(depSlug);
+      const depBase = getBaseName(depNorm);
 
-      const isDepInstalled = installedSlugs.has(depLower) ||
+      const isDepInstalled = installedSlugs.has(depNorm) ||
         installedSlugs.has(depBase) ||
-        [...installedSlugs].some(s => s.includes(depBase) || depBase.includes(s.replace(/-[\d.]+$/, '')));
+        [...installedSlugs].some(s => s.includes(depBase) || depBase.includes(getBaseName(s)));
 
-      const isInIndex = indexSlugs.has(depLower) ||
+      const isInIndex = indexSlugs.has(depNorm) ||
         indexSlugs.has(depBase) ||
-        [...indexSlugs].some(s => s.includes(depBase) || depBase.includes(s.replace(/-[\d.]+$/, '')));
+        [...indexSlugs].some(s => s.includes(depBase) || depBase.includes(getBaseName(s)));
 
       let status: DepStatus;
       if (isDepInstalled) {
