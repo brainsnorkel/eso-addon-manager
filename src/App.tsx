@@ -116,7 +116,7 @@ function BrowseView() {
 }
 
 function InstalledView() {
-  const { installed, loading, fetchInstalled, scanLocalAddons } = useAddonStore();
+  const { installed, loading, fetchInstalled } = useAddonStore();
   const { addons: indexAddons } = useIndexStore();
 
   // Create a set of index slugs for fast lookup
@@ -143,14 +143,10 @@ function InstalledView() {
         title="Installed Addons"
         subtitle={subtitle}
         actions={
-          <div className="flex gap-2">
-            <Button onClick={scanLocalAddons} variant="secondary">
-              Scan Local
-            </Button>
-            <Button onClick={fetchInstalled} loading={loading} variant="secondary">
-              Refresh
-            </Button>
-          </div>
+          // Refresh scans the addon directory and auto-imports any untracked addons
+          <Button onClick={fetchInstalled} loading={loading} variant="secondary">
+            Refresh
+          </Button>
         }
       />
       <div className="p-6 flex-1 overflow-auto">
