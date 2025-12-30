@@ -210,6 +210,18 @@ Current focus order:
   npm run lint
   ```
 
+### Version Bumps
+When bumping the version, update all three files and restart the app:
+```bash
+# Files to update (all must match):
+# - src-tauri/Cargo.toml (version = "X.Y.Z")
+# - package.json ("version": "X.Y.Z")
+# - src-tauri/tauri.conf.json ("version": "X.Y.Z")
+
+# After version bump, restart the dev server to pick up changes:
+lsof -ti:1420 | xargs kill 2>/dev/null; npm run tauri dev
+```
+
 ---
 
 ## Addon Index
