@@ -60,19 +60,16 @@ function findInstalledAddon(addon: IndexAddon, installed: InstalledAddon[]): Ins
   });
 }
 
-// Format relative time (e.g., "2 days ago", "3 months ago")
-function formatRelativeTime(dateString: string): string {
+// Format date/time in local timezone (e.g., "Oct 19, 2024 3:16 AM")
+function formatLocalDateTime(dateString: string): string {
   const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return 'today';
-  if (diffDays === 1) return 'yesterday';
-  if (diffDays < 7) return `${diffDays}d ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
-  return `${Math.floor(diffDays / 365)}y ago`;
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
@@ -321,7 +318,7 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
           <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span>{addon.last_updated ? formatRelativeTime(addon.last_updated) : 'unknown'}</span>
+          <span>{addon.last_updated ? formatLocalDateTime(addon.last_updated) : 'unknown'}</span>
         </div>
 
         {/* Tags */}
