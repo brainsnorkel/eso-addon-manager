@@ -75,9 +75,10 @@ eso-addon-manager/
 ├── src/                        # React frontend
 │   ├── components/
 │   │   ├── layout/             # Sidebar, Header
-│   │   ├── addons/             # AddonCard
+│   │   ├── addons/             # AddonCard, DependencyDialog
+│   │   ├── github/             # AddRepoModal
 │   │   ├── search/             # SearchBar
-│   │   └── common/             # Button, etc.
+│   │   └── common/             # Button, UpdateBanner
 │   ├── stores/                 # Zustand stores
 │   │   ├── addonStore.ts
 │   │   ├── indexStore.ts
@@ -138,10 +139,11 @@ cargo test --manifest-path src-tauri/Cargo.toml
 ## Development Priorities
 
 Current focus order:
-1. **GitHub Integration** - Track addons from custom GitHub repos (PRIORITY)
-2. Core install/uninstall from index
-3. Local addon scanning
-4. Update checking
+1. ~~**GitHub Integration** - Track addons from custom GitHub repos~~ ✅ DONE
+2. **Submit to Index** - Allow users to submit tested GitHub addons to the index
+3. Core install/uninstall from index
+4. Local addon scanning
+5. Update checking
 
 ---
 
@@ -156,10 +158,14 @@ Current focus order:
 - `get_addon_directory` / `set_addon_directory` - ESO path management
 
 ### GitHub Commands
-- `add_custom_repo` - Track a GitHub repo
+- `add_custom_repo` - Track a GitHub repo (with release type and branch)
 - `get_custom_repos` - List tracked repos
 - `remove_custom_repo` - Stop tracking a repo
 - `get_github_repo_info` - Fetch repo metadata
+- `get_github_repo_preview` - Get full preview (info + branches + releases)
+- `list_github_branches` - List available branches for a repo
+- `install_from_github` - Install addon from tracked repo
+- `get_github_release` - Get latest release info
 
 ### Index Commands
 - `fetch_index` - Get/refresh addon index
