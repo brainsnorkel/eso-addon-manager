@@ -5,6 +5,7 @@ import { Button } from './components/common/Button';
 import { UpdateBanner } from './components/common/UpdateBanner';
 import { SearchBar } from './components/search/SearchBar';
 import { AddonCard } from './components/addons/AddonCard';
+import { AddRepoModal } from './components/github/AddRepoModal';
 import { useIndexStore } from './stores/indexStore';
 import { useAddonStore } from './stores/addonStore';
 import { useSettingsStore } from './stores/settingsStore';
@@ -196,8 +197,6 @@ function InstalledView() {
 
 function GitHubView() {
   const [showAddModal, setShowAddModal] = useState(false);
-  const [repoInput, setRepoInput] = useState('');
-  const [addError, setAddError] = useState<string | null>(null);
 
   const {
     repos,
@@ -205,7 +204,6 @@ function GitHubView() {
     installing,
     error,
     fetchRepos,
-    addRepo,
     removeRepo,
     installFromRepo,
     clearError
@@ -216,28 +214,9 @@ function GitHubView() {
     fetchRepos();
   }, []);
 
-  const handleAddRepo = async () => {
-    if (!repoInput.trim()) return;
-
-    // Validate format: owner/repo
-    if (!repoInput.includes('/')) {
-      setAddError('Please enter a valid GitHub repository (e.g., owner/repo)');
-      return;
-    }
-
+  const handleInstall = async (repo: string, releaseType: string, branch?: string) => {
     try {
-      setAddError(null);
-      await addRepo(repoInput.trim());
-      setRepoInput('');
-      setShowAddModal(false);
-    } catch (e) {
-      setAddError(String(e));
-    }
-  };
-
-  const handleInstall = async (repo: string, releaseType: string) => {
-    try {
-      await installFromRepo(repo, releaseType);
+      await installFromRepo(repo, releaseType, releaseType === 'branch' ? branch : undefined);
       await fetchInstalled();
     } catch (e) {
       console.error('Install failed:', e);
@@ -256,7 +235,7 @@ function GitHubView() {
           {error && (
             <div className="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-lg flex justify-between items-center">
               <span className="text-red-200 text-sm">{error}</span>
-              <button onClick={clearError} className="text-red-400 hover:text-red-300">×</button>
+              <button onClick={clearError} className="text-red-400 hover:text-red-300">&times;</button>
             </div>
           )}
 
@@ -286,7 +265,7 @@ function GitHubView() {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        onClick={() => handleInstall(repo.repo, repo.releaseType)}
+                        onClick={() => handleInstall(repo.repo, repo.releaseType, repo.branch)}
                         loading={installing === repo.repo}
                       >
                         Install
@@ -308,46 +287,11 @@ function GitHubView() {
       </div>
 
       {/* Add Repository Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-100 mb-4">Add GitHub Repository</h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Repository</label>
-                <input
-                  type="text"
-                  value={repoInput}
-                  onChange={(e) => setRepoInput(e.target.value)}
-                  placeholder="owner/repository"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:ring-amber-500 focus:border-amber-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Example: brainsnorkel/eso-addon-index
-                </p>
-              </div>
-
-              {addError && (
-                <p className="text-sm text-red-400">{addError}</p>
-              )}
-
-              <div className="flex justify-end gap-2">
-                <Button variant="secondary" onClick={() => {
-                  setShowAddModal(false);
-                  setRepoInput('');
-                  setAddError(null);
-                }}>
-                  Cancel
-                </Button>
-                <Button onClick={handleAddRepo} loading={loading}>
-                  Add Repository
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <AddRepoModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={() => fetchRepos()}
+      />
     </>
   );
 }

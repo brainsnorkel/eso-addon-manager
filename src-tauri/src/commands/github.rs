@@ -172,6 +172,157 @@ pub struct GitHubRepoInfo {
     pub has_releases: bool,
 }
 
+/// Branch information for display
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GitHubBranchInfo {
+    pub name: String,
+    pub is_default: bool,
+}
+
+/// Repository preview with all info needed for the add modal
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoPreview {
+    pub name: String,
+    pub description: Option<String>,
+    pub stars: u64,
+    pub default_branch: String,
+    pub branches: Vec<GitHubBranchInfo>,
+    pub has_releases: bool,
+    pub latest_release: Option<GitHubReleaseInfo>,
+    pub updated_at: Option<String>,
+}
+
+/// List branches for a GitHub repository
+#[tauri::command]
+pub async fn list_github_branches(repo: String) -> Result<Vec<GitHubBranchInfo>, String> {
+    // First get repo info to find default branch
+    let client = reqwest::Client::new();
+    let url = format!("https://api.github.com/repos/{}", repo);
+
+    let response: serde_json::Value = client
+        .get(&url)
+        .header("User-Agent", "eso-addon-manager")
+        .header("Accept", "application/vnd.github.v3+json")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if let Some(message) = response.get("message").and_then(|m| m.as_str()) {
+        if message == "Not Found" {
+            return Err(format!("Repository not found: {}", repo));
+        }
+    }
+
+    let default_branch = response
+        .get("default_branch")
+        .and_then(|b| b.as_str())
+        .unwrap_or("main");
+
+    let branches = downloader::list_github_branches(&repo, default_branch)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(branches
+        .into_iter()
+        .map(|b| GitHubBranchInfo {
+            name: b.name,
+            is_default: b.is_default,
+        })
+        .collect())
+}
+
+/// Get full repository preview for the add modal
+#[tauri::command]
+pub async fn get_github_repo_preview(repo: String) -> Result<RepoPreview, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://api.github.com/repos/{}", repo);
+
+    let response: serde_json::Value = client
+        .get(&url)
+        .header("User-Agent", "eso-addon-manager")
+        .header("Accept", "application/vnd.github.v3+json")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Check for error response
+    if let Some(message) = response.get("message").and_then(|m| m.as_str()) {
+        if message == "Not Found" {
+            return Err(format!("Repository not found: {}", repo));
+        }
+    }
+
+    let name = response
+        .get("name")
+        .and_then(|n| n.as_str())
+        .unwrap_or_default()
+        .to_string();
+
+    let description = response
+        .get("description")
+        .and_then(|d| d.as_str())
+        .map(String::from);
+
+    let default_branch = response
+        .get("default_branch")
+        .and_then(|b| b.as_str())
+        .unwrap_or("main")
+        .to_string();
+
+    let stars = response
+        .get("stargazers_count")
+        .and_then(|s| s.as_u64())
+        .unwrap_or(0);
+
+    let updated_at = response
+        .get("updated_at")
+        .and_then(|u| u.as_str())
+        .map(String::from);
+
+    // Get branches
+    let branches = downloader::list_github_branches(&repo, &default_branch)
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .map(|b| GitHubBranchInfo {
+            name: b.name,
+            is_default: b.is_default,
+        })
+        .collect();
+
+    // Get latest release
+    let release_info = downloader::get_github_release_info(&repo)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let has_releases = release_info.is_some();
+    let latest_release = release_info.map(|r| GitHubReleaseInfo {
+        tag_name: r.tag_name,
+        name: r.name,
+        download_url: r.download_url,
+        published_at: r.published_at,
+    });
+
+    Ok(RepoPreview {
+        name,
+        description,
+        stars,
+        default_branch,
+        branches,
+        has_releases,
+        latest_release,
+        updated_at,
+    })
+}
+
 /// Install an addon from a GitHub repository
 #[tauri::command]
 pub async fn install_from_github(

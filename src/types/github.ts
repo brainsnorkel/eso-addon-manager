@@ -17,3 +17,29 @@ export interface GitHubRepoInfo {
   updatedAt?: string;
   hasReleases: boolean;
 }
+
+/** GitHub branch information */
+export interface GitHubBranchInfo {
+  name: string;
+  isDefault: boolean;
+}
+
+/** GitHub release information */
+export interface GitHubReleaseInfo {
+  tagName: string;
+  name?: string;
+  downloadUrl: string;
+  publishedAt?: string;
+}
+
+/** Repository preview with all info needed for the add modal */
+export interface RepoPreview {
+  name: string;
+  description?: string;
+  stars: number;
+  defaultBranch: string;
+  branches: GitHubBranchInfo[];
+  hasReleases: boolean;
+  latestRelease?: GitHubReleaseInfo;
+  updatedAt?: string;
+}

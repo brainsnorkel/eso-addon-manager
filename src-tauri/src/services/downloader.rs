@@ -106,6 +106,62 @@ pub struct GitHubReleaseInfo {
     pub published_at: Option<String>,
 }
 
+/// GitHub branch information
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitHubBranch {
+    pub name: String,
+    pub is_default: bool,
+}
+
+/// List branches for a GitHub repository
+pub async fn list_github_branches(repo: &str, default_branch: &str) -> Result<Vec<GitHubBranch>> {
+    let client = reqwest::Client::new();
+    let url = format!(
+        "https://api.github.com/repos/{}/branches?per_page=100",
+        repo
+    );
+
+    let response = client
+        .get(&url)
+        .header("User-Agent", "eso-addon-manager")
+        .header("Accept", "application/vnd.github.v3+json")
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Ok(vec![GitHubBranch {
+            name: default_branch.to_string(),
+            is_default: true,
+        }]);
+    }
+
+    let data: serde_json::Value = response.json().await?;
+
+    let branches: Vec<GitHubBranch> = data
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|b| {
+                    b.get("name")
+                        .and_then(|n| n.as_str())
+                        .map(|name| GitHubBranch {
+                            name: name.to_string(),
+                            is_default: name == default_branch,
+                        })
+                })
+                .collect()
+        })
+        .unwrap_or_else(|| {
+            vec![GitHubBranch {
+                name: default_branch.to_string(),
+                is_default: true,
+            }]
+        });
+
+    Ok(branches)
+}
+
 /// Get the latest release information from a GitHub repository
 pub async fn get_github_release_info(repo: &str) -> Result<Option<GitHubReleaseInfo>> {
     let client = reqwest::Client::new();

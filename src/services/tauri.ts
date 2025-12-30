@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { InstalledAddon, UpdateInfo, ScannedAddon, VersionTracking, DependencyResult } from '../types/addon';
 import type { AddonIndex, IndexStats, InstallInfo } from '../types/index';
-import type { CustomRepo, GitHubRepoInfo } from '../types/github';
+import type { CustomRepo, GitHubRepoInfo, GitHubBranchInfo, GitHubReleaseInfo, RepoPreview } from '../types/github';
 import type { AppSettings } from '../types/settings';
 
 // ============================================================================
@@ -90,16 +90,20 @@ export async function installFromGitHub(
   return invoke('install_from_github', { repo, releaseType, branch });
 }
 
-export interface GitHubReleaseInfo {
-  tagName: string;
-  name?: string;
-  downloadUrl: string;
-  publishedAt?: string;
-}
-
 export async function getGitHubRelease(repo: string): Promise<GitHubReleaseInfo | null> {
   return invoke('get_github_release', { repo });
 }
+
+export async function getGitHubRepoPreview(repo: string): Promise<RepoPreview> {
+  return invoke('get_github_repo_preview', { repo });
+}
+
+export async function listGitHubBranches(repo: string): Promise<GitHubBranchInfo[]> {
+  return invoke('list_github_branches', { repo });
+}
+
+// Re-export types for convenience
+export type { GitHubReleaseInfo, GitHubBranchInfo, RepoPreview };
 
 // ============================================================================
 // Index Commands

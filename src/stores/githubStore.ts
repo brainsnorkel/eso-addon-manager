@@ -1,24 +1,33 @@
 import { create } from 'zustand';
 import * as api from '../services/tauri';
-import type { CustomRepo, GitHubRepoInfo } from '../types/github';
+import type { CustomRepo, GitHubRepoInfo, GitHubReleaseInfo, RepoPreview } from '../types/github';
 import type { InstalledAddon } from '../types/addon';
 
 interface GitHubStore {
   repos: CustomRepo[];
   repoInfo: Map<string, GitHubRepoInfo>;
-  releaseInfo: Map<string, api.GitHubReleaseInfo>;
+  releaseInfo: Map<string, GitHubReleaseInfo>;
   loading: boolean;
   installing: string | null; // repo being installed
   error: string | null;
+
+  // Preview state for add modal
+  repoPreview: RepoPreview | null;
+  previewLoading: boolean;
+  previewError: string | null;
 
   // Actions
   fetchRepos: () => Promise<void>;
   addRepo: (repo: string, branch?: string, releaseType?: string) => Promise<void>;
   removeRepo: (repo: string) => Promise<void>;
   fetchRepoInfo: (repo: string) => Promise<GitHubRepoInfo>;
-  fetchRelease: (repo: string) => Promise<api.GitHubReleaseInfo | null>;
+  fetchRelease: (repo: string) => Promise<GitHubReleaseInfo | null>;
   installFromRepo: (repo: string, releaseType?: string, branch?: string) => Promise<InstalledAddon>;
   clearError: () => void;
+
+  // Preview actions
+  fetchRepoPreview: (repo: string) => Promise<RepoPreview>;
+  clearPreview: () => void;
 }
 
 export const useGitHubStore = create<GitHubStore>((set) => ({
@@ -28,6 +37,11 @@ export const useGitHubStore = create<GitHubStore>((set) => ({
   loading: false,
   installing: null,
   error: null,
+
+  // Preview state
+  repoPreview: null,
+  previewLoading: false,
+  previewError: null,
 
   fetchRepos: async () => {
     set({ loading: true, error: null });
@@ -112,4 +126,18 @@ export const useGitHubStore = create<GitHubStore>((set) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  fetchRepoPreview: async (repo) => {
+    set({ previewLoading: true, previewError: null, repoPreview: null });
+    try {
+      const preview = await api.getGitHubRepoPreview(repo);
+      set({ repoPreview: preview, previewLoading: false });
+      return preview;
+    } catch (e) {
+      set({ previewError: String(e), previewLoading: false });
+      throw e;
+    }
+  },
+
+  clearPreview: () => set({ repoPreview: null, previewError: null, previewLoading: false }),
 }));
