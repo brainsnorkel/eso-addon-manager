@@ -4,15 +4,13 @@
 
 A cross-platform desktop application for discovering, installing, and managing Elder Scrolls Online (ESO) addons. Built with Tauri 2.x (Rust backend + React frontend) for native performance with a modern UI.
 
-**Status**: SCAFFOLDED - Ready for Development
+**Status**: IN DEVELOPMENT - Core Features Complete
 **License**: MIT
 **Target**: Public release for ESO community
 
 ---
 
-## Scaffolding Complete
-
-The project structure has been fully scaffolded with:
+## Current Features
 
 - [x] Tauri 2.x project with React + TypeScript
 - [x] Tailwind CSS 4 configuration
@@ -22,6 +20,10 @@ The project structure has been fully scaffolded with:
 - [x] TypeScript type definitions
 - [x] Basic UI components (Sidebar, Header, AddonCard, etc.)
 - [x] GitHub Actions CI/CD workflows
+- [x] Multi-source download with jsDelivr CDN fallback
+- [x] GitHub repository tracking with branch/release selection
+- [x] Dependency status highlighting (installed/available/missing)
+- [x] Automatic addon scanning and import
 
 ---
 
@@ -251,15 +253,28 @@ The index provides multiple download sources per addon with automatic fallback:
 - Falls back through available sources on failure
 - Legacy `download_url` field used as final fallback for backwards compatibility
 
+### Slug Normalization
+
+The index uses hyphen-separated slugs (e.g., `libaddonmenu-2-0`), but addon manifests may use dot notation (e.g., `LibAddonMenu-2.0`). The client normalizes slugs for matching:
+
+```typescript
+// Normalize: lowercase + replace dots with hyphens
+const normalizeSlug = (s: string) => s.toLowerCase().replace(/\./g, '-');
+// "LibAddonMenu-2.0" → "libaddonmenu-2-0"
+```
+
+This ensures dependencies declared in manifests correctly match index entries.
+
 ---
 
 ## Next Steps
 
 1. ~~Implement GitHub repo validation and download~~ ✅ DONE
-2. Add file dialog for custom ESO path selection
-3. Implement auto-update mechanism
-4. Add dependency resolution for addons
-5. Create application icons
+2. ~~Multi-source download with jsDelivr CDN~~ ✅ DONE
+3. ~~Dependency status highlighting~~ ✅ DONE
+4. Add file dialog for custom ESO path selection
+5. Implement auto-update mechanism
+6. Create application icons
 
 ---
 

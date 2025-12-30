@@ -34,6 +34,7 @@ fn get_addon_path_from_state(state: &State<'_, AppState>) -> Result<PathBuf, Str
 }
 
 /// Get all installed addons (from database + auto-discovered from filesystem)
+/// This function also cleans up database entries for addons that no longer exist on disk.
 #[tauri::command]
 pub async fn get_installed_addons(
     state: State<'_, AppState>,
@@ -41,22 +42,47 @@ pub async fn get_installed_addons(
     let conn = state.db.lock().map_err(|e| e.to_string())?;
 
     // Get addons already in database
-    let mut db_addons = database::get_all_installed(&conn).map_err(|e| e.to_string())?;
+    let db_addons = database::get_all_installed(&conn).map_err(|e| e.to_string())?;
 
     // Get custom path setting
     let custom_path = database::get_setting(&conn, "eso_addon_path")
         .ok()
         .flatten();
 
+    // Verify each database addon still exists on disk, remove orphaned entries
+    let mut valid_addons: Vec<InstalledAddon> = Vec::new();
+    let mut orphaned_slugs: Vec<String> = Vec::new();
+
+    for addon in db_addons {
+        let manifest_path = PathBuf::from(&addon.manifest_path);
+        // Check if manifest file exists, or if parent folder exists (for addons with modified manifests)
+        if manifest_path.exists()
+            || manifest_path
+                .parent()
+                .map(|p| p.exists())
+                .unwrap_or(false)
+        {
+            valid_addons.push(addon);
+        } else {
+            // Addon folder no longer exists - mark for removal
+            orphaned_slugs.push(addon.slug.clone());
+        }
+    }
+
+    // Clean up orphaned database entries
+    for slug in orphaned_slugs {
+        let _ = database::delete_installed(&conn, &slug);
+    }
+
     // Try to scan the addon directory for untracked addons
     if let Some(addon_dir) = get_eso_addon_path_with_custom(custom_path.as_deref()) {
         if let Ok(scanned) = scanner::scan_addon_directory(&addon_dir) {
             // Create a set of manifest paths already in database for quick lookup
             let db_manifest_paths: std::collections::HashSet<_> =
-                db_addons.iter().map(|a| a.manifest_path.clone()).collect();
+                valid_addons.iter().map(|a| a.manifest_path.clone()).collect();
 
             // Also track folder names from database addons
-            let db_folders: std::collections::HashSet<_> = db_addons
+            let db_folders: std::collections::HashSet<_> = valid_addons
                 .iter()
                 .filter_map(|a| {
                     PathBuf::from(&a.manifest_path)
@@ -105,17 +131,17 @@ pub async fn get_installed_addons(
                         None, // No version_sort_key for local addons
                         None, // No commit_sha for local addons
                     ) {
-                        db_addons.push(addon);
+                        valid_addons.push(addon);
                     }
                 }
             }
 
             // Re-sort by name after adding new addons
-            db_addons.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+            valid_addons.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
         }
     }
 
-    Ok(db_addons)
+    Ok(valid_addons)
 }
 
 /// Helper to emit a failed status with error message
