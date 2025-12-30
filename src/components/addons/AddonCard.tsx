@@ -1,10 +1,19 @@
-import { FC, useState } from 'react';
+import { FC, useState, useMemo } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Button } from '../common/Button';
 import { DependencyDialog } from './DependencyDialog';
 import { useAddonStore } from '../../stores/addonStore';
+import { useIndexStore } from '../../stores/indexStore';
 import type { IndexAddon } from '../../types/index';
 import type { InstalledAddon, DependencyResult, ResolvedDependency } from '../../types/addon';
+
+// Dependency status for highlighting
+type DepStatus = 'installed' | 'available' | 'missing';
+
+interface DependencyInfo {
+  slug: string;
+  status: DepStatus;
+}
 
 interface AddonCardProps {
   addon: IndexAddon;
@@ -53,22 +62,13 @@ function findInstalledAddon(addon: IndexAddon, installed: InstalledAddon[]): Ins
 
 export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
   const { installed, downloads, installAddon, uninstallAddon, resolveAddonDependencies } = useAddonStore();
+  const { addons: indexAddons } = useIndexStore();
 
   // State for dependency dialog
   const [showDepDialog, setShowDepDialog] = useState(false);
   const [depResult, setDepResult] = useState<DependencyResult | null>(null);
   const [installingWithDeps, setInstallingWithDeps] = useState(false);
   const [resolvingDeps, setResolvingDeps] = useState(false);
-
-  // Debug: log first addon's matching attempt
-  if (addon.slug === 'libaddonmenu' || installed.length > 0 && addon.slug === 'libaddonmenu') {
-    console.log('AddonCard debug:', {
-      indexSlug: addon.slug,
-      targetFolder: addon.install.target_folder,
-      installedCount: installed.length,
-      installedSlugs: installed.map(i => i.slug).slice(0, 5),
-    });
-  }
 
   const installedAddon = findInstalledAddon(addon, installed);
   const isInstalled = !!installedAddon;
@@ -86,6 +86,42 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
 
   // Check for dependencies from the addon's compatibility info
   const hasPotentialDependencies = addon.compatibility.required_dependencies.length > 0;
+
+  // Analyze dependency status
+  const dependencyInfos = useMemo((): DependencyInfo[] => {
+    if (!hasPotentialDependencies) return [];
+
+    // Build sets for quick lookup (lowercase for case-insensitive matching)
+    const installedSlugs = new Set(installed.map(a => a.slug.toLowerCase()));
+    const indexSlugs = new Set(indexAddons.map(a => a.slug.toLowerCase()));
+
+    return addon.compatibility.required_dependencies.map(depSlug => {
+      const depLower = depSlug.toLowerCase();
+      // Also check without version suffix (e.g., "libaddonmenu-2.0" -> "libaddonmenu")
+      const depBase = depLower.replace(/-[\d.]+$/, '');
+
+      const isDepInstalled = installedSlugs.has(depLower) ||
+        installedSlugs.has(depBase) ||
+        [...installedSlugs].some(s => s.includes(depBase) || depBase.includes(s.replace(/-[\d.]+$/, '')));
+
+      const isInIndex = indexSlugs.has(depLower) ||
+        indexSlugs.has(depBase) ||
+        [...indexSlugs].some(s => s.includes(depBase) || depBase.includes(s.replace(/-[\d.]+$/, '')));
+
+      let status: DepStatus;
+      if (isDepInstalled) {
+        status = 'installed';
+      } else if (isInIndex) {
+        status = 'available';
+      } else {
+        status = 'missing';
+      }
+
+      return { slug: depSlug, status };
+    });
+  }, [addon.compatibility.required_dependencies, installed, indexAddons, hasPotentialDependencies]);
+
+  const hasMissingDeps = dependencyInfos.some(d => d.status === 'missing');
 
   const handleInstall = async () => {
     if (!downloadUrl) return;
@@ -207,15 +243,46 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
         </div>
       )}
 
-      {/* Dependencies list */}
+      {/* Dependencies list with status indicators */}
       {hasPotentialDependencies && (
-        <div className="mt-3 flex items-center gap-1.5 text-xs text-gray-500">
-          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="mt-3 flex items-start gap-1.5 text-xs">
+          <svg className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${hasMissingDeps ? 'text-red-400' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
           </svg>
-          <span className="truncate">
-            Requires: {addon.compatibility.required_dependencies.join(', ')}
-          </span>
+          <div className="flex flex-wrap gap-x-1 gap-y-0.5">
+            <span className="text-gray-500">Requires:</span>
+            {dependencyInfos.map((dep, idx) => (
+              <span key={dep.slug} className="inline-flex items-center">
+                <span
+                  className={
+                    dep.status === 'installed'
+                      ? 'text-green-400'
+                      : dep.status === 'available'
+                        ? 'text-gray-400'
+                        : 'text-red-400 font-medium'
+                  }
+                  title={
+                    dep.status === 'installed'
+                      ? 'Installed'
+                      : dep.status === 'available'
+                        ? 'Available in index'
+                        : 'Not available - install manually via ESOUI/Minion'
+                  }
+                >
+                  {dep.slug}
+                  {dep.status === 'missing' && ' *'}
+                </span>
+                {idx < dependencyInfos.length - 1 && <span className="text-gray-600">,</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Missing dependencies warning */}
+      {hasMissingDeps && (
+        <div className="mt-2 px-2 py-1.5 bg-red-900/20 border border-red-800/50 rounded text-xs text-red-300">
+          <span className="font-medium">* Missing dependencies</span> - install via ESOUI or Minion
         </div>
       )}
 
