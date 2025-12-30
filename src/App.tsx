@@ -59,7 +59,7 @@ function App() {
 }
 
 function BrowseView() {
-  const { loading, fetchIndex, filteredAddons, addons } = useIndexStore();
+  const { loading, fetchIndex, filteredAddons, addons, sortBy, setSortBy } = useIndexStore();
   const { error, clearError } = useAddonStore();
   const filtered = filteredAddons();
 
@@ -93,8 +93,38 @@ function BrowseView() {
               </div>
             </div>
           )}
-          <SearchBar />
-          <div className="mt-6 grid gap-4">
+
+          {/* Search and Sort controls */}
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <SearchBar />
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-500">Sort:</span>
+              <button
+                onClick={() => setSortBy('name')}
+                className={`px-2 py-1 rounded transition-colors ${
+                  sortBy === 'name'
+                    ? 'bg-amber-600/20 text-amber-400'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                A-Z
+              </button>
+              <button
+                onClick={() => setSortBy('updated')}
+                className={`px-2 py-1 rounded transition-colors ${
+                  sortBy === 'updated'
+                    ? 'bg-amber-600/20 text-amber-400'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                Recent
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3">
             {loading && filtered.length === 0 ? (
               <div className="text-center py-12 text-gray-400">
                 Loading addons...

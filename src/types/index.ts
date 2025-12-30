@@ -33,6 +33,8 @@ export interface IndexAddon {
   version_info?: VersionInfo;
   /** Multiple download sources with jsDelivr CDN as primary and GitHub as fallback */
   download_sources?: DownloadSource[];
+  /** ISO 8601 timestamp of when the addon was last updated */
+  last_updated?: string;
 }
 
 /** Source repository information */

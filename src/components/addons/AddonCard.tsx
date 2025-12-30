@@ -60,6 +60,21 @@ function findInstalledAddon(addon: IndexAddon, installed: InstalledAddon[]): Ins
   });
 }
 
+// Format relative time (e.g., "2 days ago", "3 months ago")
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'today';
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
+  return `${Math.floor(diffDays / 365)}y ago`;
+}
+
 export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
   const { installed, downloads, installAddon, uninstallAddon, resolveAddonDependencies } = useAddonStore();
   const { addons: indexAddons } = useIndexStore();
@@ -208,115 +223,34 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
   };
 
   return (
-    <div className="bg-gray-800 rounded-lg p-4 hover:bg-gray-750 transition-colors border border-gray-700">
-      <div className="flex justify-between items-start gap-4">
+    <div className="bg-gray-800 rounded-lg p-3 hover:bg-gray-750 transition-colors border border-gray-700">
+      {/* Header: Name + Actions */}
+      <div className="flex justify-between items-start gap-3">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-100 truncate">{addon.name}</h3>
-          <p className="text-sm text-gray-400 mt-0.5">
-            {addon.authors.join(', ')}
-          </p>
-          {addon.url && (
-            <button
-              onClick={handleOpenDocs}
-              className="text-xs text-amber-500/70 hover:text-amber-400 transition-colors mt-0.5 truncate max-w-full text-left"
-              title={addon.url}
-            >
-              {addon.url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
-            </button>
-          )}
-        </div>
-      </div>
-
-      <p className="mt-3 text-sm text-gray-400 line-clamp-2">
-        {addon.description}
-      </p>
-
-      {addon.tags.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1">
-          {addon.tags.slice(0, 3).map((tag) => (
-            <span
-              key={tag}
-              className="px-2 py-0.5 text-xs rounded bg-gray-700/50 text-gray-400"
-            >
-              {tag}
-            </span>
-          ))}
-          {addon.tags.length > 3 && (
-            <span className="px-2 py-0.5 text-xs text-gray-500">
-              +{addon.tags.length - 3} more
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Dependencies list with status indicators */}
-      {hasPotentialDependencies && (
-        <div className="mt-3 flex items-start gap-1.5 text-xs">
-          <svg className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${hasMissingDeps ? 'text-red-400' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-          </svg>
-          <div className="flex flex-wrap gap-x-1 gap-y-0.5">
-            <span className="text-gray-500">Requires:</span>
-            {dependencyInfos.map((dep, idx) => (
-              <span key={dep.slug} className="inline-flex items-center">
-                <span
-                  className={
-                    dep.status === 'installed'
-                      ? 'text-green-400'
-                      : dep.status === 'available'
-                        ? 'text-gray-400'
-                        : 'text-red-400 font-medium'
-                  }
-                  title={
-                    dep.status === 'installed'
-                      ? 'Installed'
-                      : dep.status === 'available'
-                        ? 'Available in index'
-                        : 'Not available - install manually via ESOUI/Minion'
-                  }
-                >
-                  {dep.slug}
-                  {dep.status === 'missing' && ' *'}
-                </span>
-                {idx < dependencyInfos.length - 1 && <span className="text-gray-600">,</span>}
-              </span>
-            ))}
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-gray-100 truncate">{addon.name}</h3>
+            {isInstalled && !hasUpdate && (
+              <span className="flex-shrink-0 w-2 h-2 rounded-full bg-green-500" title="Installed" />
+            )}
           </div>
+          <p className="text-xs text-gray-500 truncate">
+            {addon.authors.join(', ')}
+            {addon.url && (
+              <>
+                <span className="mx-1.5">·</span>
+                <button
+                  onClick={handleOpenDocs}
+                  className="text-amber-500/70 hover:text-amber-400 transition-colors"
+                >
+                  docs
+                </button>
+              </>
+            )}
+          </p>
         </div>
-      )}
 
-      {/* Missing dependencies warning */}
-      {hasMissingDeps && (
-        <div className="mt-2 px-2 py-1.5 bg-red-900/20 border border-red-800/50 rounded text-xs text-red-300">
-          <span className="font-medium">* Missing dependencies</span> - install via ESOUI or Minion
-        </div>
-      )}
-
-      {/* Update available banner */}
-      {hasUpdate && (
-        <div className="mt-3 px-3 py-2 bg-amber-900/30 border border-amber-700/50 rounded-lg flex items-center gap-2">
-          <svg className="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          <span className="text-xs text-amber-200">
-            Update available: <span className="text-amber-400/70">{installedAddon.installedVersion}</span>
-            <span className="mx-1">→</span>
-            <span className="text-amber-300 font-medium">{addon.latest_release?.version}</span>
-          </span>
-        </div>
-      )}
-
-      <div className="mt-4 flex items-center justify-between">
-        <span className="text-sm text-gray-500">
-          {addon.latest_release?.version ?? (canInstall ? 'Branch: ' + addon.source.branch : 'No release')}
-          {isInstalled && !hasUpdate && (
-            <span className="ml-2 text-green-400">
-              (installed: {installedAddon.installedVersion})
-            </span>
-          )}
-        </span>
-
-        <div className="flex gap-2">
+        {/* Action buttons */}
+        <div className="flex gap-2 flex-shrink-0">
           {downloadState && downloadState.status === 'failed' ? (
             <div className="flex items-center gap-2">
               <span className="text-xs text-red-400" title={downloadState.error || 'Installation failed'}>
@@ -328,7 +262,7 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
             </div>
           ) : downloadState && downloadState.status !== 'complete' ? (
             <div className="flex items-center gap-2">
-              <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
+              <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-amber-500 transition-all"
                   style={{ width: `${downloadState.progress * 100}%` }}
@@ -361,6 +295,103 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
           )}
         </div>
       </div>
+
+      {/* Description */}
+      <p className="mt-2 text-sm text-gray-400 line-clamp-1">
+        {addon.description}
+      </p>
+
+      {/* Metadata grid */}
+      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        {/* Version */}
+        <div className="flex items-center gap-1.5 text-gray-500">
+          <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+          </svg>
+          <span className="truncate">
+            {addon.latest_release?.version ?? addon.source.branch}
+            {isInstalled && hasUpdate && (
+              <span className="text-amber-400 ml-1">← {installedAddon.installedVersion}</span>
+            )}
+          </span>
+        </div>
+
+        {/* Last updated */}
+        <div className="flex items-center gap-1.5 text-gray-500">
+          <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>{addon.last_updated ? formatRelativeTime(addon.last_updated) : 'unknown'}</span>
+        </div>
+
+        {/* Tags */}
+        {addon.tags.length > 0 && (
+          <div className="col-span-2 flex items-center gap-1.5 text-gray-500">
+            <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+            <span className="truncate">
+              {addon.tags.slice(0, 4).join(', ')}
+              {addon.tags.length > 4 && ` +${addon.tags.length - 4}`}
+            </span>
+          </div>
+        )}
+
+        {/* Dependencies */}
+        {hasPotentialDependencies && (
+          <div className="col-span-2 flex items-center gap-1.5">
+            <svg className={`w-3 h-3 flex-shrink-0 ${hasMissingDeps ? 'text-red-400' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            <span className="truncate">
+              {dependencyInfos.map((dep, idx) => (
+                <span key={dep.slug}>
+                  <span
+                    className={
+                      dep.status === 'installed'
+                        ? 'text-green-400'
+                        : dep.status === 'available'
+                          ? 'text-gray-500'
+                          : 'text-red-400'
+                    }
+                    title={
+                      dep.status === 'installed'
+                        ? 'Installed'
+                        : dep.status === 'available'
+                          ? 'Available in index'
+                          : 'Not available - install manually'
+                    }
+                  >
+                    {dep.slug}
+                  </span>
+                  {idx < dependencyInfos.length - 1 && <span className="text-gray-600">, </span>}
+                </span>
+              ))}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Update available banner */}
+      {hasUpdate && (
+        <div className="mt-2 px-2 py-1 bg-amber-900/30 border border-amber-700/50 rounded text-xs text-amber-200 flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span>
+            Update: <span className="text-amber-400/70">{installedAddon.installedVersion}</span>
+            <span className="mx-1">→</span>
+            <span className="text-amber-300 font-medium">{addon.latest_release?.version}</span>
+          </span>
+        </div>
+      )}
+
+      {/* Missing dependencies warning */}
+      {hasMissingDeps && (
+        <div className="mt-2 px-2 py-1 bg-red-900/20 border border-red-800/50 rounded text-xs text-red-300">
+          Missing dependencies - install via ESOUI or Minion
+        </div>
+      )}
 
       {/* Dependency Dialog */}
       {showDepDialog && depResult && (

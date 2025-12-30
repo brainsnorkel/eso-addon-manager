@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import * as api from '../services/tauri';
 import type { IndexAddon, IndexStats } from '../types/index';
 
+export type SortOption = 'name' | 'updated';
+
 interface IndexStore {
   addons: IndexAddon[];
   lastFetched: string | null;
@@ -13,12 +15,16 @@ interface IndexStore {
   searchQuery: string;
   selectedTags: string[];
 
+  // Sorting
+  sortBy: SortOption;
+
   // Actions
   fetchIndex: (force?: boolean) => Promise<void>;
   fetchStats: () => Promise<void>;
   setSearchQuery: (query: string) => void;
   toggleTag: (tag: string) => void;
   clearFilters: () => void;
+  setSortBy: (sort: SortOption) => void;
 
   // Computed
   filteredAddons: () => IndexAddon[];
@@ -33,6 +39,7 @@ export const useIndexStore = create<IndexStore>((set, get) => ({
   error: null,
   searchQuery: '',
   selectedTags: [],
+  sortBy: 'name',
 
   fetchIndex: async (force = false) => {
     set({ loading: true, error: null });
@@ -66,11 +73,12 @@ export const useIndexStore = create<IndexStore>((set, get) => ({
     })),
   clearFilters: () =>
     set({ searchQuery: '', selectedTags: [] }),
+  setSortBy: (sort) => set({ sortBy: sort }),
 
   filteredAddons: () => {
-    const { addons, searchQuery, selectedTags } = get();
+    const { addons, searchQuery, selectedTags, sortBy } = get();
 
-    return addons.filter((addon) => {
+    const filtered = addons.filter((addon) => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -90,6 +98,18 @@ export const useIndexStore = create<IndexStore>((set, get) => ({
       }
 
       return true;
+    });
+
+    // Sort the filtered results
+    return filtered.sort((a, b) => {
+      if (sortBy === 'updated') {
+        // Sort by last_updated descending (most recent first)
+        const dateA = a.last_updated ? new Date(a.last_updated).getTime() : 0;
+        const dateB = b.last_updated ? new Date(b.last_updated).getTime() : 0;
+        return dateB - dateA;
+      }
+      // Default: sort by name ascending
+      return a.name.localeCompare(b.name);
     });
   },
 

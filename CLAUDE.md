@@ -24,6 +24,9 @@ A cross-platform desktop application for discovering, installing, and managing E
 - [x] GitHub repository tracking with branch/release selection
 - [x] Dependency status highlighting (installed/available/missing)
 - [x] Automatic addon scanning and import
+- [x] Addon sorting (alphabetical A-Z / recently updated)
+- [x] Last updated display with relative time formatting
+- [x] Compact card layout with metadata grid
 
 ---
 
@@ -277,6 +280,26 @@ const normalizeSlug = (s: string) => s.toLowerCase().replace(/\./g, '-');
 
 This ensures dependencies declared in manifests correctly match index entries.
 
+### Index Schema Fields Used
+
+The client uses these index fields per addon:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `slug` | string | Unique identifier |
+| `name` | string | Display name |
+| `description` | string | Short description |
+| `authors` | string[] | Author names |
+| `tags` | string[] | Category tags |
+| `url` | string? | Documentation/homepage URL |
+| `source` | object | GitHub repo info (type, repo, branch) |
+| `compatibility.required_dependencies` | string[] | Required addon slugs |
+| `install` | object | Installation config (target_folder, etc.) |
+| `latest_release` | object? | Version, download_url, commit_sha |
+| `version_info` | object? | version_sort_key for comparisons |
+| `download_sources` | array? | Multi-source download URLs |
+| `last_updated` | string? | ISO 8601 timestamp of last update |
+
 ---
 
 ## Next Steps
@@ -284,9 +307,10 @@ This ensures dependencies declared in manifests correctly match index entries.
 1. ~~Implement GitHub repo validation and download~~ ✅ DONE
 2. ~~Multi-source download with jsDelivr CDN~~ ✅ DONE
 3. ~~Dependency status highlighting~~ ✅ DONE
-4. Add file dialog for custom ESO path selection
-5. Implement auto-update mechanism
-6. Create application icons
+4. ~~Addon sorting and last_updated display~~ ✅ DONE (v0.4.0)
+5. Add file dialog for custom ESO path selection
+6. Implement auto-update mechanism
+7. Create application icons
 
 ---
 
