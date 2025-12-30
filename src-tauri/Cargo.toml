@@ -1,6 +1,6 @@
 [package]
 name = "eso-addon-manager"
-version = "0.2.0"
+version = "0.3.0"
 description = "ESO Addon Manager - Discover, install, and manage Elder Scrolls Online addons"
 authors = ["you"]
 license = "MIT"
