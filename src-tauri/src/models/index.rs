@@ -37,6 +37,9 @@ pub struct IndexAddon {
     /// Multiple download sources with jsDelivr CDN as primary and GitHub as fallback
     #[serde(default)]
     pub download_sources: Vec<DownloadSource>,
+    /// ISO 8601 timestamp of when the addon was last updated
+    #[serde(default)]
+    pub last_updated: Option<String>,
 }
 
 /// Source repository information
