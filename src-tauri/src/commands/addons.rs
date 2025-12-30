@@ -56,12 +56,7 @@ pub async fn get_installed_addons(
     for addon in db_addons {
         let manifest_path = PathBuf::from(&addon.manifest_path);
         // Check if manifest file exists, or if parent folder exists (for addons with modified manifests)
-        if manifest_path.exists()
-            || manifest_path
-                .parent()
-                .map(|p| p.exists())
-                .unwrap_or(false)
-        {
+        if manifest_path.exists() || manifest_path.parent().map(|p| p.exists()).unwrap_or(false) {
             valid_addons.push(addon);
         } else {
             // Addon folder no longer exists - mark for removal
@@ -78,8 +73,10 @@ pub async fn get_installed_addons(
     if let Some(addon_dir) = get_eso_addon_path_with_custom(custom_path.as_deref()) {
         if let Ok(scanned) = scanner::scan_addon_directory(&addon_dir) {
             // Create a set of manifest paths already in database for quick lookup
-            let db_manifest_paths: std::collections::HashSet<_> =
-                valid_addons.iter().map(|a| a.manifest_path.clone()).collect();
+            let db_manifest_paths: std::collections::HashSet<_> = valid_addons
+                .iter()
+                .map(|a| a.manifest_path.clone())
+                .collect();
 
             // Also track folder names from database addons
             let db_folders: std::collections::HashSet<_> = valid_addons
