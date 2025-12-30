@@ -308,6 +308,7 @@ mod tests {
             }),
             version_info: None,
             download_sources: vec![],
+            last_updated: None,
         }
     }
 
