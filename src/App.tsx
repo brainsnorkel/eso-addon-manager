@@ -116,12 +116,31 @@ function BrowseView() {
 
 function InstalledView() {
   const { installed, loading, fetchInstalled, scanLocalAddons } = useAddonStore();
+  const { addons: indexAddons } = useIndexStore();
+
+  // Create a set of index slugs for fast lookup
+  const indexSlugs = new Set(indexAddons.map(a => a.slug));
+
+  // Classify addons as managed (in index) or unmanaged (not in index)
+  const classifiedAddons = installed.map(addon => ({
+    ...addon,
+    isManaged: indexSlugs.has(addon.slug)
+  }));
+
+  const managedCount = classifiedAddons.filter(a => a.isManaged).length;
+  const unmanagedCount = classifiedAddons.filter(a => !a.isManaged).length;
+
+  // Build subtitle
+  const subtitleParts: string[] = [];
+  if (managedCount > 0) subtitleParts.push(`${managedCount} managed`);
+  if (unmanagedCount > 0) subtitleParts.push(`${unmanagedCount} unmanaged`);
+  const subtitle = subtitleParts.length > 0 ? subtitleParts.join(', ') : 'No addons installed';
 
   return (
     <>
       <Header
         title="Installed Addons"
-        subtitle={`${installed.length} addons installed`}
+        subtitle={subtitle}
         actions={
           <div className="flex gap-2">
             <Button onClick={scanLocalAddons} variant="secondary">
@@ -142,14 +161,21 @@ function InstalledView() {
             </div>
           ) : (
             <div className="grid gap-4">
-              {installed.map((addon) => (
+              {classifiedAddons.map((addon) => (
                 <div
                   key={addon.slug}
                   className="bg-gray-800 rounded-lg p-4 border border-gray-700"
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <h3 className="font-semibold text-gray-100">{addon.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-gray-100">{addon.name}</h3>
+                        {!addon.isManaged && (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded bg-yellow-900/50 text-yellow-300 border border-yellow-700">
+                            unmanaged
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-400">
                         v{addon.installedVersion} - {addon.sourceType}
                       </p>
