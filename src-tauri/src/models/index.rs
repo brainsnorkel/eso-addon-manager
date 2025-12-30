@@ -34,6 +34,9 @@ pub struct IndexAddon {
     pub latest_release: Option<AddonRelease>,
     /// Version metadata for comparison (from index)
     pub version_info: Option<VersionInfo>,
+    /// Multiple download sources with jsDelivr CDN as primary and GitHub as fallback
+    #[serde(default)]
+    pub download_sources: Vec<DownloadSource>,
 }
 
 /// Source repository information
@@ -86,6 +89,19 @@ pub struct AddonRelease {
     pub commit_date: Option<String>,
     /// Commit message (for branch-based releases)
     pub commit_message: Option<String>,
+}
+
+/// A download source for an addon (jsDelivr CDN or GitHub archive)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DownloadSource {
+    /// Source type: "jsdelivr" or "github_archive"
+    #[serde(rename = "type")]
+    pub source_type: String,
+    /// Download URL
+    pub url: String,
+    /// Optional note about the source
+    #[serde(default)]
+    pub note: Option<String>,
 }
 
 /// Normalized semantic version components

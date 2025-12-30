@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { listen } from '@tauri-apps/api/event';
 import * as api from '../services/tauri';
 import type { InstalledAddon, UpdateInfo, DownloadProgress, ScannedAddon, VersionTracking, DependencyResult } from '../types/addon';
-import type { InstallInfo } from '../types/index';
+import type { InstallInfo, DownloadSource } from '../types/index';
 
 interface AddonStore {
   installed: InstalledAddon[];
@@ -14,7 +14,7 @@ interface AddonStore {
 
   // Actions
   fetchInstalled: () => Promise<void>;
-  installAddon: (slug: string, name: string, version: string, downloadUrl: string, installInfo?: InstallInfo, versionTracking?: VersionTracking) => Promise<void>;
+  installAddon: (slug: string, name: string, version: string, downloadUrl: string, installInfo?: InstallInfo, versionTracking?: VersionTracking, downloadSources?: DownloadSource[]) => Promise<void>;
   uninstallAddon: (slug: string) => Promise<void>;
   checkUpdates: () => Promise<void>;
   scanLocalAddons: () => Promise<void>;
@@ -42,7 +42,7 @@ export const useAddonStore = create<AddonStore>((set, get) => ({
     }
   },
 
-  installAddon: async (slug, name, version, downloadUrl, installInfo, versionTracking) => {
+  installAddon: async (slug, name, version, downloadUrl, installInfo, versionTracking, downloadSources) => {
     // Listen for progress updates
     const unlisten = await listen<DownloadProgress>('download-progress', (event) => {
       set((state) => {
@@ -53,7 +53,7 @@ export const useAddonStore = create<AddonStore>((set, get) => ({
     });
 
     try {
-      await api.installAddon(slug, name, version, downloadUrl, undefined, undefined, installInfo, versionTracking);
+      await api.installAddon(slug, name, version, downloadUrl, undefined, undefined, installInfo, versionTracking, downloadSources);
       await get().fetchInstalled();
     } catch (e) {
       set({ error: String(e) });

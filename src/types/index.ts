@@ -7,6 +7,16 @@ export interface AddonIndex {
   fetched_at?: string;
 }
 
+/** A download source for an addon (jsDelivr CDN or GitHub archive) */
+export interface DownloadSource {
+  /** Source type: "jsdelivr" or "github_archive" */
+  type: 'jsdelivr' | 'github_archive';
+  /** Download URL */
+  url: string;
+  /** Optional note about the source */
+  note?: string;
+}
+
 /** An addon entry from the index */
 export interface IndexAddon {
   slug: string;
@@ -21,6 +31,8 @@ export interface IndexAddon {
   install: InstallInfo;
   latest_release?: AddonRelease;
   version_info?: VersionInfo;
+  /** Multiple download sources with jsDelivr CDN as primary and GitHub as fallback */
+  download_sources?: DownloadSource[];
 }
 
 /** Source repository information */

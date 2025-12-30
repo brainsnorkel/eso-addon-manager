@@ -1,4 +1,5 @@
-use crate::error::Result;
+use crate::error::{AppError, Result};
+use crate::models::index::DownloadSource;
 use std::path::PathBuf;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
@@ -37,6 +38,93 @@ where
     on_progress(1.0);
 
     Ok(())
+}
+
+/// Download from multiple sources with fallback
+/// Tries each source in order until one succeeds
+/// Prefers github_archive sources since they provide ZIP files directly
+/// (jsDelivr serves individual files which requires different handling)
+pub async fn download_with_fallback<F>(
+    sources: &[DownloadSource],
+    fallback_url: Option<&str>,
+    target_path: &PathBuf,
+    on_progress: F,
+) -> Result<()>
+where
+    F: Fn(f64) + Send + Clone + 'static,
+{
+    let mut last_error: Option<String> = None;
+
+    // Filter to prefer github_archive sources (they provide ZIP files)
+    // jsDelivr serves individual files which we can't easily handle as a ZIP
+    let archive_sources: Vec<_> = sources
+        .iter()
+        .filter(|s| s.source_type == "github_archive")
+        .collect();
+
+    // Try archive sources first
+    for source in &archive_sources {
+        match download_file(&source.url, target_path, on_progress.clone()).await {
+            Ok(_) => {
+                return Ok(());
+            }
+            Err(e) => {
+                last_error = Some(format!("{} download failed: {}", source.source_type, e));
+            }
+        }
+    }
+
+    // Try remaining sources (jsdelivr etc) if they provide direct file downloads
+    // Note: jsDelivr typically serves individual files, not ZIP archives
+    // But some repos may have pre-packaged ZIPs available
+    for source in sources.iter().filter(|s| s.source_type != "github_archive") {
+        // Only try if URL ends with .zip (pre-packaged archive)
+        if source.url.ends_with(".zip") {
+            match download_file(&source.url, target_path, on_progress.clone()).await {
+                Ok(_) => {
+                    return Ok(());
+                }
+                Err(e) => {
+                    last_error = Some(format!("{} download failed: {}", source.source_type, e));
+                }
+            }
+        }
+    }
+
+    // Fallback to the legacy download_url if provided
+    if let Some(url) = fallback_url {
+        match download_file(url, target_path, on_progress).await {
+            Ok(_) => {
+                return Ok(());
+            }
+            Err(e) => {
+                last_error = Some(format!("Fallback download failed: {}", e));
+            }
+        }
+    }
+
+    Err(AppError::Download(last_error.unwrap_or_else(|| {
+        "All download sources failed".to_string()
+    })))
+}
+
+/// Get the best download URL from sources, preferring github_archive
+pub fn get_best_download_url(
+    sources: &[DownloadSource],
+    fallback_url: Option<&str>,
+) -> Option<String> {
+    // Prefer github_archive sources
+    if let Some(source) = sources.iter().find(|s| s.source_type == "github_archive") {
+        return Some(source.url.clone());
+    }
+
+    // Try any source with a .zip URL
+    if let Some(source) = sources.iter().find(|s| s.url.ends_with(".zip")) {
+        return Some(source.url.clone());
+    }
+
+    // Fall back to legacy URL
+    fallback_url.map(|s| s.to_string())
 }
 
 /// Get the download URL for a GitHub release asset

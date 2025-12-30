@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { InstalledAddon, UpdateInfo, ScannedAddon, VersionTracking, DependencyResult } from '../types/addon';
-import type { AddonIndex, IndexStats, InstallInfo } from '../types/index';
+import type { AddonIndex, IndexStats, InstallInfo, DownloadSource } from '../types/index';
 import type { CustomRepo, GitHubRepoInfo, GitHubBranchInfo, GitHubReleaseInfo, RepoPreview } from '../types/github';
 import type { AppSettings } from '../types/settings';
 
@@ -20,7 +20,8 @@ export async function installAddon(
   sourceType?: string,
   sourceRepo?: string,
   installInfo?: InstallInfo,
-  versionTracking?: VersionTracking
+  versionTracking?: VersionTracking,
+  downloadSources?: DownloadSource[]
 ): Promise<InstalledAddon> {
   return invoke('install_addon', {
     slug,
@@ -31,6 +32,7 @@ export async function installAddon(
     sourceRepo,
     installInfo,
     versionTracking,
+    downloadSources,
   });
 }
 

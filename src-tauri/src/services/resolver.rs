@@ -307,6 +307,7 @@ mod tests {
                 commit_message: None,
             }),
             version_info: None,
+            download_sources: vec![],
         }
     }
 

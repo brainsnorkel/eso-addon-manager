@@ -119,7 +119,8 @@ export const AddonCard: FC<AddonCardProps> = ({ addon }) => {
       versionSortKey: addon.version_info?.version_sort_key,
       commitSha: addon.latest_release?.commit_sha,
     };
-    await installAddon(addon.slug, addon.name, version, downloadUrl, addon.install, versionTracking);
+    // Pass download sources for multi-source fallback (jsDelivr CDN -> GitHub archive)
+    await installAddon(addon.slug, addon.name, version, downloadUrl, addon.install, versionTracking, addon.download_sources);
   };
 
   const handleDepConfirm = async (selectedDeps: ResolvedDependency[]) => {

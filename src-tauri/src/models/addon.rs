@@ -123,6 +123,9 @@ pub struct UpdateInfo {
     pub source_repo: Option<String>,
     /// Installation info for proper extraction (from index)
     pub install_info: Option<super::InstallInfo>,
+    /// Multiple download sources with fallback (jsDelivr CDN -> GitHub archive)
+    #[serde(default)]
+    pub download_sources: Vec<super::index::DownloadSource>,
 }
 
 /// Download progress event

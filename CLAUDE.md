@@ -221,6 +221,36 @@ The app fetches this index automatically and caches it locally.
 
 **Important**: The client context document records current usage of the index API and should be consulted when implementing or modifying index-related features.
 
+### Multi-Source Downloads (jsDelivr CDN)
+
+The index provides multiple download sources per addon with automatic fallback:
+
+```json
+"download_sources": [
+  {
+    "type": "jsdelivr",
+    "url": "https://cdn.jsdelivr.net/gh/Owner/Repo@tag/path/",
+    "note": "CDN - no rate limits, CORS-friendly"
+  },
+  {
+    "type": "github_archive",
+    "url": "https://github.com/Owner/Repo/archive/refs/tags/tag.zip",
+    "note": "Direct GitHub ZIP archive"
+  }
+]
+```
+
+**Benefits of jsDelivr CDN**:
+- No rate limiting (GitHub has ~60 requests/hour unauthenticated)
+- Global edge caching for faster downloads
+- CORS-friendly for browser-based tools
+- Works in restricted networks where GitHub may be blocked
+
+**Implementation**:
+- Backend prefers `github_archive` sources (ZIP format)
+- Falls back through available sources on failure
+- Legacy `download_url` field used as final fallback for backwards compatibility
+
 ---
 
 ## Next Steps

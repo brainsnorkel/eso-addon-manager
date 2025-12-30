@@ -1,5 +1,6 @@
 use crate::models::{
-    DownloadProgress, DownloadStatus, InstallInfo, InstalledAddon, SourceType, UpdateInfo,
+    index::DownloadSource, DownloadProgress, DownloadStatus, InstallInfo, InstalledAddon,
+    SourceType, UpdateInfo,
 };
 use crate::services::{database, downloader, installer, scanner};
 use crate::state::AppState;
@@ -131,6 +132,7 @@ fn emit_install_error(window: &Window, slug: &str, error: &str) {
 }
 
 /// Install an addon from a download URL with optional install info from the index
+/// Supports multiple download sources with fallback (jsDelivr CDN -> GitHub archive)
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub async fn install_addon(
@@ -142,6 +144,7 @@ pub async fn install_addon(
     source_repo: Option<String>,
     install_info: Option<InstallInfo>,
     version_tracking: Option<VersionTracking>,
+    download_sources: Option<Vec<DownloadSource>>,
     state: State<'_, AppState>,
     window: Window,
 ) -> Result<InstalledAddon, String> {
@@ -167,10 +170,10 @@ pub async fn install_addon(
     };
     let temp_path = temp_file.path().to_path_buf();
 
-    // Download the addon
+    // Download the addon - use multi-source fallback if available
     let window_clone = window.clone();
     let slug_clone = slug.clone();
-    if let Err(e) = downloader::download_file(&download_url, &temp_path, move |progress| {
+    let progress_callback = move |progress: f64| {
         let _ = window_clone.emit(
             "download-progress",
             DownloadProgress {
@@ -180,9 +183,28 @@ pub async fn install_addon(
                 error: None,
             },
         );
-    })
-    .await
-    {
+    };
+
+    let download_result = if let Some(ref sources) = download_sources {
+        if !sources.is_empty() {
+            // Use multi-source fallback (prefers github_archive sources)
+            downloader::download_with_fallback(
+                sources,
+                Some(&download_url),
+                &temp_path,
+                progress_callback,
+            )
+            .await
+        } else {
+            // Empty sources array, use single URL
+            downloader::download_file(&download_url, &temp_path, progress_callback).await
+        }
+    } else {
+        // No sources provided, use single URL (backward compatibility)
+        downloader::download_file(&download_url, &temp_path, progress_callback).await
+    };
+
+    if let Err(e) = download_result {
         let error = format!("Download failed: {}", e);
         emit_install_error(&window, &slug, &error);
         return Err(error);
@@ -372,6 +394,7 @@ pub async fn check_updates(state: State<'_, AppState>) -> Result<Vec<UpdateInfo>
                                     source_type: SourceType::Index,
                                     source_repo: Some(index_entry.source.repo.clone()),
                                     install_info: Some(index_entry.install.clone()),
+                                    download_sources: index_entry.download_sources.clone(),
                                 });
                             }
                         }
@@ -410,6 +433,7 @@ pub async fn check_updates(state: State<'_, AppState>) -> Result<Vec<UpdateInfo>
                                     source_type: SourceType::Github,
                                     source_repo: Some(repo.clone()),
                                     install_info: None, // GitHub repos don't have index install info
+                                    download_sources: Vec::new(), // GitHub repos use single download URL
                                 });
                             }
                         }

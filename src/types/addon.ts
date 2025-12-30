@@ -47,6 +47,8 @@ export interface UpdateInfo {
   sourceType: 'index' | 'github' | 'local';
   sourceRepo?: string;
   installInfo?: import('./index').InstallInfo;
+  /** Multiple download sources with fallback (jsDelivr CDN -> GitHub archive) */
+  downloadSources?: import('./index').DownloadSource[];
 }
 
 /** Download progress event */

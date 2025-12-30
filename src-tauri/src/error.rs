@@ -29,6 +29,9 @@ pub enum AppError {
     #[error("Repository not found: {0}")]
     RepoNotFound(String),
 
+    #[error("Download failed: {0}")]
+    Download(String),
+
     #[error("{0}")]
     Custom(String),
 }
