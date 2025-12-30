@@ -1,4 +1,5 @@
-import { FC } from 'react';
+import { FC, useState, useEffect } from 'react';
+import { getVersion } from '@tauri-apps/api/app';
 
 interface NavItem {
   id: string;
@@ -61,6 +62,12 @@ const navItems: NavItem[] = [
 ];
 
 export const Sidebar: FC<SidebarProps> = ({ activeView, onViewChange }) => {
+  const [version, setVersion] = useState<string>('');
+
+  useEffect(() => {
+    getVersion().then(setVersion).catch(() => setVersion('dev'));
+  }, []);
+
   return (
     <aside className="w-56 bg-gray-900 text-gray-100 flex flex-col">
       {/* Logo */}
@@ -91,7 +98,7 @@ export const Sidebar: FC<SidebarProps> = ({ activeView, onViewChange }) => {
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-800 text-xs text-gray-500">
-        <p>v0.1.0</p>
+        <p>v{version}</p>
       </div>
     </aside>
   );
